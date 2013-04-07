@@ -1,0 +1,8 @@
+setup r
+move e2 e4
+play 3
+move g1 f3
+play 3
+move f3 e5
+play 3
+quit

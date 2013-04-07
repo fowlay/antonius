@@ -1,0 +1,98 @@
+setup r
+move d2 d4
+play 3
+move g1 f3
+play 3
+move c2 c3
+play 3
+move c1 g5
+play 3
+move g5 h4
+play 3
+move h4 g3
+play 3
+move g3 d6
+play 3
+move e2 e4
+play 3
+move f1 d3
+play 3
+move g2 g3
+play 3
+move h2 h3
+play 3
+move g3 g4
+play 3
+move 0-0
+play 3
+move f1 e1
+play 3
+move e4 e5
+play 3
+move g1 g2
+play 3
+move h3 g4
+play 3
+move b1 a3
+play 3
+move a3 c4
+play 3
+move c4 e3
+play 3
+move g4 f5
+play 3
+move d1 c2
+play 3
+move e3 f5
+play 3
+move d3 f5
+play 3
+move g2 g3
+play 3
+move e1 e5
+play 3
+move g3 f3
+play 3
+move f3 g4
+play 3
+move g4 h5
+play 3
+move h5 g4
+play 3
+move g4 f3
+play 3
+move f3 e2
+play 3
+move f5 h3
+play 3
+move h3 d7
+play 3
+move c2 f5
+play 3
+move e5 f5
+play 3
+move d7 b5
+play 3
+move b5 d3
+play 3
+move a1 h1
+play 3
+move b2 b3
+play 3
+move a2 b3
+play 3
+move d4 d5
+play 3
+move d5 c6
+play 3
+move h1 h2
+play 3
+move h2 h1
+play 3
+move h1 h2
+play 3
+move h2 h1
+play 3
+move h1 h2
+play 3
+quit

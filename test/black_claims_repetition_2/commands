@@ -1,0 +1,27 @@
+empty
+put b p a7
+put b p b7
+put b p c7
+put b p d7
+put b p e7
+put b p g7
+put b p h7
+put b k h8
+put b r a8
+put w q a1
+put w k b1
+put w r c1
+put w r d1
+put w p a2 w
+move d1 h1
+play 3
+move h1 h2
+move f8 g8
+move h2 h1
+play 3
+move h1 h3
+move f8 d8
+move h3 h1
+play 3
+quit
+

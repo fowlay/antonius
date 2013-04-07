@@ -1,0 +1,9 @@
+setup r
+move g1 h3
+move b8 c6
+move e2 e3
+move c6 e5
+move f1 e2
+move e5 f3
+move 0-0
+quit

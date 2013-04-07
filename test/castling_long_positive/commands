@@ -1,0 +1,12 @@
+setup r
+move d2 d3
+move d7 d6
+move c1 e3
+move c8 e6
+move d1 d2
+move d8 d7
+move b1 c3
+move b8 c6
+move 0-0-0
+move 0-0-0
+quit

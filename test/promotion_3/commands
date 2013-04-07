@@ -1,0 +1,10 @@
+empty
+put w k e1
+put w p c7
+put w r b1
+put b k a7
+put b b a8
+put b p a6 w
+suggest 4
+do
+quit

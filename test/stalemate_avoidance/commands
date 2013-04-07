@@ -1,0 +1,17 @@
+empty
+put w k g4
+put b k h8
+put b r h7
+put b p h6
+put b p h4
+put b r h3
+put b p g2 w 
+move g4 h5
+play 3
+move h5 g4
+play 3
+move g4 h5
+play 3
+move h5 h6
+play 3
+quit

@@ -1,0 +1,3 @@
+Positive test of repetition, caused by black. This is the situation
+where black can foresee that a repetition can be caused, but choose to
+NOT do so since black is in a good position.

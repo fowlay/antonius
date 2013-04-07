@@ -1,0 +1,9 @@
+empty
+put w k b1
+put w p a2
+put w p b2
+put b k g8
+put b r h8 w
+move b1 a1
+play 8
+quit

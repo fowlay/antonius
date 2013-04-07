@@ -1,0 +1,4 @@
+Positive test of repetition, caused by black. This is the situation
+where black can foresee that a repetition can be caused, choose to
+do so and claim repetition. Towards Xboard this should be handled
+by issuing an "offer draw" command followed by the actual move.
