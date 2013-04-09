@@ -1,9 +1,0 @@
-setup r
-move e2 e3
-move b8 c6
-move f1 c4
-move c6 b4
-move g1 h3
-move b4 c2
-move 0-0
-quit

@@ -11,7 +11,7 @@ HEADERS = $(wildcard include/*.hrl)
 SOURCE = $(wildcard src/*.erl)
 
 
-.PHONY: help test-quick test-long dialyze game-cli game-xboard bytecode hdeps clean
+.PHONY: help test-quick test-long test-pack dialyze game-cli game-xboard bytecode hdeps clean
 
 
 help:
@@ -23,18 +23,32 @@ help:
 	@echo "dialyze        Check against type errors"
 	@echo "game-cli       Play a game using the console"
 	@echo "game-xboard    Play a game using xboard"
+	@echo "test-pack      Rebuild the tests tarball"
 	@echo "clean          Remove most built objects"
 	@echo "distclean      Remove all built objects"
 	@echo ""
 
 
 
-test-quick: bytecode
+test-quick: bytecode var/test-unpacked.t
 	bin/batchtest_SUITE.sh quickTests
 
 
-test-long: bytecode
+test-long: bytecode var/test-unpacked.t
 	bin/batchtest_SUITE.sh longTests
+
+
+var/test-unpacked.t:
+	tar -xjf test-src/test.tar.bz2 -C test
+	touch $@
+
+
+test-pack: test-src/test.tar.bz2
+
+
+test-src/test.tar.bz2: var/test-unpacked.t
+	find test -type f -name '*~' -exec rm -f {} ';'
+	tar -cjf $@ -C test *
 
 
 dialyze: var/dialyzer_plt
@@ -85,3 +99,5 @@ distclean:
 	$(MAKE) clean
 	rm -f var/dialyzer_plt
 	rm -f var/log/*
+	rm -f var/test-unpacked.t
+	rm -rf test/*

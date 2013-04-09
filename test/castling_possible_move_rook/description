@@ -1,2 +1,0 @@
-Verify that the rook move h1 -> f1 is not mistaken for a castling
-when the corresponding node is generated.

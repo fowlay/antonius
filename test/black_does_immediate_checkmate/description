@@ -1,5 +1,0 @@
-Positive test, black wins by checkmating white. Although
-the given command is "play 8", which is rather deep, the
-case terminates quickly because black sees the immediate
-checkmate and chooses it without further analysis.
-

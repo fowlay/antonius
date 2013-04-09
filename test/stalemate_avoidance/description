@@ -1,3 +1,0 @@
-Positive test of black being at advantage and avoiding to cause a stalemate.
-The avoidance occurs at black's first move, where promotion to queen would
-cause a stalemate.

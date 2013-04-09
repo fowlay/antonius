@@ -1,4 +1,0 @@
-positive test of a situation where black makes an unexpected
-move. The explanation is that the look-ahead is quite
-short, ending with black capturing a rook. At depth 4 the
-move is not chosen.

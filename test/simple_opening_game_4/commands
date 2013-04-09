@@ -1,8 +1,0 @@
-setup r
-move e2 e4
-play 4
-move g1 f3
-play 4
-move f3 e5
-play 4
-quit

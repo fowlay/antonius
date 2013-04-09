@@ -1,8 +1,0 @@
-empty
-put b k e8
-put b p c4
-put w k e1
-put w p b2 w
-move b2 b4
-play 4
-quit
