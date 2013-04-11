@@ -120,6 +120,10 @@ groups() ->
 					  ref11_test,
 					  ref12_test,
 					  ref16_test
+					 ]},
+	 {performanceTests, [], [
+					  ref10_timing_test,
+					  ref16_test
 					 ]}
 	].
 

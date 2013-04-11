@@ -14,6 +14,8 @@ Requirements
 * An installation of Erlang (http://erlang.org). The installed
 executables (erl, erlc, etc) must be in the path.
 
+* A C compiler, such as gcc.
+
 * Optionally: The "xboard" GUI.
 
 * Optionally: Eclipse with ErlIDE for browsing/editing the source.

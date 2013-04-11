@@ -8,10 +8,13 @@
 # header file, that is more recent than the header file itself
 # and all header files that it depends on (recursively).
 
-include ../var/header.mk
+
+ifeq ($(wildcard *.mk), header.mk) 
+include header.mk
+endif
 
 
-.PHONY: all clean
+.PHONY: all clean distclean
 
 
 HEADERS=$(wildcard ../include/*.hrl)
@@ -26,4 +29,7 @@ all: $(TIMESTAMPS)
 
 
 clean:
-	rm -f *.t *~
+	rm -f *.t header.mk
+
+
+distclean: clean

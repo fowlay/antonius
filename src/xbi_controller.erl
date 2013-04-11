@@ -41,6 +41,8 @@
 
 start([_]) ->
 	
+	core_nif:init(),
+	
 	core_state:start(),
 	core_state:init([]),
 	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),

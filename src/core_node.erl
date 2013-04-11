@@ -195,7 +195,8 @@ create(WhiteMaterial, BlackMaterial, ToMove) ->
 
 create(White, Black, ToMove, MovedPawn, IsWhiteCastled, IsBlackCastled) ->
 	% state:incrementAndGet(nodeCount, 1),
-	Pieces = core_boardmap:createPiecesMap(White, Black),
+	% Pieces = core_nif:createPiecesMap(White, Black, null),
+	Pieces = core_nif:createPiecesMap(White, Black, boardMap, null),
 	Result = #node{
 		  white = White,
 		  black = Black,
@@ -213,29 +214,27 @@ create(White, Black, ToMove, MovedPawn, IsWhiteCastled, IsBlackCastled) ->
 	Result.
 
 
--spec create([#piece{}], [#piece{}], colour(), xpiece(), smallint(), smallint(), tuple()) -> #node{}.
-
-create(White, Black, ToMove, MovedPawn, IsWhiteCastled, IsBlackCastled, {#node{pieces=Map}, From, To, Piece}) ->
-	% state:incrementAndGet(nodeCount, 1),
-	
-	%Pieces = boardmap:createPiecesMap(White, Black),
-	% faster creation of the map ...
-	Pieces = core_boardmap:createPiecesMap(Map, From, To, Piece),
-	Result = #node{
-		  white = White,
-		  black = Black,
-		  pieces = Pieces,
-		  toMove = ToMove,
-		  blackAdvantage = 
-			  (5*eval3(Black, Pieces, MovedPawn) + IsBlackCastled)
-		 - (5*eval3(White, Pieces, MovedPawn) + IsWhiteCastled),
-		  movedPawn = MovedPawn,
-		  isWhiteCastled = IsWhiteCastled,
-		  isBlackCastled = IsBlackCastled
-		 },
-%% 	,
-%% 	logger:log("~s ~w~n", [key(Result), Result#node.blackAdvantage]), 
-	Result.
+%% -spec create([#piece{}], [#piece{}], colour(), xpiece(), smallint(), smallint(), tuple()) -> #node{}.
+%% 
+%% create(White, Black, ToMove, MovedPawn, IsWhiteCastled, IsBlackCastled, {#node{pieces=Map}, From, To, Piece}) ->
+%% 	% state:incrementAndGet(nodeCount, 1),
+%% 	
+%% 	%Pieces = boardmap:createPiecesMap(White, Black),
+%% 	% faster creation of the map ...
+%% 	Pieces = core_boardmap:createPiecesMap(Map, From, To, Piece),
+%% 	Result = #node{
+%% 		  white = White,
+%% 		  black = Black,
+%% 		  pieces = Pieces,
+%% 		  toMove = ToMove,
+%% 		  blackAdvantage = 
+%% 			  (5*eval3(Black, Pieces, MovedPawn) + IsBlackCastled)
+%% 		 - (5*eval3(White, Pieces, MovedPawn) + IsWhiteCastled),
+%% 		  movedPawn = MovedPawn,
+%% 		  isWhiteCastled = IsWhiteCastled,
+%% 		  isBlackCastled = IsBlackCastled
+%% 		 },
+%% 	Result.
 
 
 
@@ -543,13 +542,13 @@ isCheckedAfterMove(#node{white=White, black=Black, toMove=ToMove}=N) ->
 
 
 
--spec getJustMovedPiece([#piece{}], #square{}) -> #piece{}.
-
-getJustMovedPiece([#piece{square=To}=P|_], To) ->
-	P;
-
-getJustMovedPiece([_|Tail], To) ->
-	getJustMovedPiece(Tail, To).
+%% -spec getJustMovedPiece([#piece{}], #square{}) -> #piece{}.
+%% 
+%% getJustMovedPiece([#piece{square=To}=P|_], To) ->
+%% 	P;
+%% 
+%% getJustMovedPiece([_|Tail], To) ->
+%% 	getJustMovedPiece(Tail, To).
 
 
 
@@ -560,30 +559,36 @@ makeMove(#node{toMove=white, white=White, black=Black, isWhiteCastled=WC, isBlac
 	Mopp = newOppMaterial(N, Black, From, To),
 	JustMovedWhitePawn = getJustMovedWhitePawn(From, To, Mown),
 	
-	if
-		Mopp =:= Black ->
-			% optimized map creation
-			MP = getJustMovedPiece(Mown, To),
-			create(Mown, Mopp, black, JustMovedWhitePawn, WC, BC, {N, From, To, MP});
-		true ->
-			create(Mown, Mopp, black, JustMovedWhitePawn, WC, BC)
-	end;
+%% 	if
+%% 		Mopp =:= Black ->
+%% 			% optimized map creation
+%% 			MP = getJustMovedPiece(Mown, To),
+%% 			%%io:format("o",[]),
+%% 			create(Mown, Mopp, black, JustMovedWhitePawn, WC, BC, {N, From, To, MP});
+%% 		true ->
+%% 			%%io:format(".",[]),
+%% 			create(Mown, Mopp, black, JustMovedWhitePawn, WC, BC)
+%% 	end;
+
+	create(Mown, Mopp, black, JustMovedWhitePawn, WC, BC);
 
 makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To) ->
 	Mown = newOwnMaterial(N, Black, From, To),
 	Mopp = newOppMaterial(N, White, From, To),
 	JustMovedBlackPawn = getJustMovedBlackPawn(From, To, Mown),
 	
-	if
-		Mopp =:= White ->
-			% optimized map creation
-			MP = getJustMovedPiece(Mown, To),
-			create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC, {N, From, To, MP});
-		true ->
-			create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC)
-	end.
-	
-	
+%% 	if
+%% 		Mopp =:= White ->
+%% 			% optimized map creation
+%% 			MP = getJustMovedPiece(Mown, To),
+%% 			%%io:format("o",[]),
+%% 			create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC, {N, From, To, MP});
+%% 		true ->
+%% 			%%io:format(".",[]),
+%% 			create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC)
+%% 	end.
+
+	create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC).
 
 
 %% @doc Promotion context.

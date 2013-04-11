@@ -49,6 +49,8 @@
 
 -export([setupBoard/0]).
 
+
+
 %%
 %% API Functions
 %%
@@ -60,14 +62,13 @@
 -spec initVM() -> ok.
 
 initVM() ->
+	core_nif:init(),
 	core_state:start(),
 	core_state:init([]),
 	core_state:sput(mode, console),
-	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT).
+	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),
+	ok.
 	
-
-
-
 
 
 %% @doc Tentative, start a game with trace. The trace

@@ -4,7 +4,7 @@
 
 case "$1" in
 
-module.mk)
+ebin/module.mk)
 
   for f in src/*.erl; do
     b=`basename $f .erl`
@@ -20,7 +20,7 @@ module.mk)
     echo ""
   done;;
 
-header.mk)
+hdeps/header.mk)
 
   for f in include/*.hrl; do
     b=`basename $f .hrl`

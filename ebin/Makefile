@@ -7,10 +7,12 @@
 # on header files.
 
 
-.PHONY: all clean
+.PHONY: all clean distclean
 
 
-include ../var/module.mk
+ifeq ($(wildcard *.mk), module.mk) 
+include module.mk
+endif
 
 
 SOURCE = $(wildcard ../src/*.erl)
@@ -25,4 +27,7 @@ all: $(BYTECODE)
 
 
 clean:
-	rm -f *.beam
+	rm -f *.beam module.mk
+
+
+distclean: clean

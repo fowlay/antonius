@@ -5,13 +5,28 @@
 # It is assumed that the directory that contains this makefile
 # has been set as the working directory.
 
+# Subdirectories that have their own Makefile
+SUBDIRS = test dialyze ebin hdeps lib tsrc var
 
-
-HEADERS = $(wildcard include/*.hrl)
+HEADER_FILES = $(wildcard include/*.hrl)
 SOURCE = $(wildcard src/*.erl)
 
 
-.PHONY: help test-quick test-long test-pack dialyze game-cli game-xboard bytecode hdeps clean
+.PHONY: \
+  help \
+  test \
+  test-quick \
+  test-long \
+  test-perf \
+  dialyze \
+  game-cli \
+  game-xboard \
+  ebin \
+  hdeps \
+  lib \
+  tsrc \
+  clean \
+  distclean
 
 
 help:
@@ -20,84 +35,71 @@ help:
 	@echo "help           This help"
 	@echo "test-quick     Quick tests"
 	@echo "test-long      Time-consuming tests"
+	@echo "test-perf      Performance tests"
 	@echo "dialyze        Check against type errors"
-	@echo "game-cli       Play a game using the console"
+	@echo "game-cli       Play a game in the console"
 	@echo "game-xboard    Play a game using xboard"
-	@echo "test-pack      Rebuild the tests tarball"
+	@echo ""
+	@echo "tsrc           Rebuild the tests tarball"
 	@echo "clean          Remove most built objects"
 	@echo "distclean      Remove all built objects"
 	@echo ""
 
 
 
-test-quick: bytecode var/test-unpacked.t
+
+test-quick: ebin lib test
 	bin/batchtest_SUITE.sh quickTests
 
 
-test-long: bytecode var/test-unpacked.t
+test-long: ebin lib test
 	bin/batchtest_SUITE.sh longTests
 
 
-var/test-unpacked.t:
-	tar -xjf test-src/test.tar.bz2 -C test
-	touch $@
+test-perf: ebin lib test
+	bin/batchtest_SUITE.sh performanceTests
 
 
-test-pack: test-src/test.tar.bz2
+test:
+	$(MAKE) -C $@
 
 
-test-src/test.tar.bz2: var/test-unpacked.t
-	find test -type f -name '*~' -exec rm -f {} ';'
-	tar -cjf $@ -C test *
+dialyze:
+	$(MAKE) -C $@
 
 
-dialyze: var/dialyzer_plt
-	dialyzer --plt var/dialyzer_plt --src -I include src
-
-
-var/dialyzer_plt:
-	dialyzer \
-	  --build_plt \
-	  --output_plt var/dialyzer_plt \
-	  --apps erts kernel stdlib compiler common_test eunit test_server \
-	|| true
-
-
-game-cli: bytecode
+game-cli: ebin lib
 	bin/play.sh
 
 
-game-xboard: bytecode
+game-xboard: ebin lib
 	bin/xboard-wrapper.sh
 
 
-bytecode: hdeps var/module.mk
-	cd ebin && $(MAKE) all
+ebin: hdeps ebin/module.mk
+	$(MAKE) -C $@ all
 
 
-var/module.mk: $(SOURCE)
-	bin/deps.sh module.mk >$@
+ebin/module.mk: $(SOURCE)
+	bin/deps.sh $@ >$@
 
 
-hdeps: var/header.mk
-	cd hdeps && $(MAKE) all
+hdeps: hdeps/header.mk
+	$(MAKE) -C $@ all
 
 
-var/header.mk: $(HEADER_FILES)
-	bin/deps.sh header.mk >$@
+hdeps/header.mk: $(HEADER_FILES)
+	bin/deps.sh $@ >$@
 
 
-clean:
-	touch var/module.mk && cd ebin && $(MAKE) clean
-	touch var/header.mk && cd hdeps && $(MAKE) clean
-	cd var && $(MAKE) clean
-	cd bin && $(MAKE) clean
-	rm -f *~ .settings/*~
+lib:
+	$(MAKE) -C $@
 
 
-distclean:
-	$(MAKE) clean
-	rm -f var/dialyzer_plt
-	rm -f var/log/*
-	rm -f var/test-unpacked.t
-	rm -rf test/*
+tsrc:
+	$(MAKE) -C $@
+
+
+clean distclean:
+	for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done
+	rm -f erl_crash.dump
