@@ -33,6 +33,7 @@
 %% Exported Functions
 %%
 
+-export([initVm/2]).
 -export([userException/1]).
 -export([userException/2]).
 -export([inconsistencyException/1]).
@@ -42,6 +43,29 @@
 %%
 %% API Functions
 %%
+
+
+%% @doc Perform once-per-VM initialization. LibPath is the directory
+%% path to the libraries where native functions reside. Mode is
+%% one of console, xboard, test.
+%%
+%% The value of init:core_nif/1 is returned.
+
+-spec initVm(string(), atom) -> tuple().
+
+initVm(LibDir, Mode) ->
+	
+	LoadNative = core_nif:init(LibDir),
+	
+	core_state:start(),
+	core_state:init([]),
+	
+	core_state:sput(mode, Mode),
+	
+	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),
+	
+	LoadNative.
+
 
 
 -spec userException(string()) -> no_return().

@@ -39,20 +39,17 @@
 %% API Functions
 %%
 
-start([_]) ->
+start([LibPath, Mode]) ->
 	
-	core_nif:init(),
-	
-	core_state:start(),
-	core_state:init([]),
-	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),
-	core_state:sput(mode, xboard),
+	case core_util:initVm(LibPath, list_to_atom(Mode)) of
+		{ok} ->
+			ok;
+		_ ->
+			init:stop()
+	end,
 	
 	cmd_dict:setupCommands(),
 	cli_game:setupBoard(),
-	
-	
-	
 	
 	core_state:sput(loggingAllowed, false),
 	core_state:sput(deferredLog, []),

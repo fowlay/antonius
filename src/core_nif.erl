@@ -20,18 +20,19 @@
 
 -module(core_nif).
 
--export([init/0]).
+-export([init/1]).
 -export([createPiecesMap/4]).
 
 
 %% @doc Load the C version of certain functions.
 
-init() ->
-	case erlang:load_nif("./lib/core_nif", 0) of
-		{error,{Reason,Text}} ->
-			io:format("failed to load core_nif.so: ~p~n", [{error,{Reason,Text}}]);
+init(LibDir) ->
+	LibSpec = filename:join(LibDir, "core_nif"),
+	case erlang:load_nif(LibSpec, 0) of
+		{error, {Reason, Text}} ->
+			{error, {Reason, Text, "path was: "++LibSpec}};
 		ok ->
-			io:format("loaded: core_nif.so~n", [])
+			{ok}
 	end.
 
 

@@ -14,10 +14,12 @@ declare -r ScriptDir=`dirname $0`
 
 cd $ScriptDir/..
 
+declare -r LibDir=lib
 declare -r TestDir=test
 declare -r BytecodeDir=ebin
 
 { \
+  echo '{libDir, "'`readlink -f $LibDir`'"}.'; \
   echo '{testDir, "'`readlink -f $TestDir`'"}.'; \
   echo '{resultFile, "'`readlink -f $ResultFile`'"}.'; \
 } >$ConfigFile

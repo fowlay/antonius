@@ -29,6 +29,5 @@ EOF
 erl \
   -pa ebin \
   -noshell \
-  -run cli_game initVM \
-  -run cli_game main run \
-  -run erlang halt
+  -run cli_game main run ./lib console \
+  -run init stop

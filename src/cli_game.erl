@@ -40,7 +40,7 @@
 %%
 %% Exported Functions
 %%
--export([initVM/0]).
+
 
 -export([preMain/0]).
 
@@ -56,18 +56,7 @@
 %%
 
 
-%% @doc Perform once-per-VM initialization. This function is only
-%% called from some scripts (play.sh, batchtest.sh).
 
--spec initVM() -> ok.
-
-initVM() ->
-	core_nif:init(),
-	core_state:start(),
-	core_state:init([]),
-	core_state:sput(mode, console),
-	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),
-	ok.
 	
 
 
@@ -92,16 +81,21 @@ preMainLoop() ->
 
 
 
-%% @doc Play a game. To start a game, type
-%%
-%%     erl -noshell -run game main run -run erlang halt
-%% 
-%%
+%% @doc Play a game.
 
 -spec main([string()]) -> #gameState{}.
 
-main(["run"]) ->
+main(["run", LibDir, Mode]) ->
+	case core_util:initVm(LibDir, list_to_atom(Mode)) of
+		{error, X} ->
+			io:format("warning: ~p, expect reduced performance~n", [X]);
+		{ok} ->
+			io:format("successfully loaded native functions~n", [])
+	end,
 	play(false, false, standard_io, user);
+
+
+%% @doc Untested and unsupported.
 
 main(["debug"]) ->
 	receive

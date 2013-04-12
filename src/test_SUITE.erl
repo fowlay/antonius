@@ -173,7 +173,11 @@ ref16_test(C) ->                     test_adapter:run(fileInfo(C), ref16_test).
 
 
 init_per_suite(Config) ->
-    cli_game:initVM(),
+	
+	LibDir = ct:get_config(libDir),
+	ResultFromInit = core_util:initVm(LibDir, test),
+	ct:pal("result from initVm: ~p", [ResultFromInit]),
+
     ResultFile = ct:get_config(resultFile),
     {ok, ResultDevice} = file:open(ResultFile, [write]),
     ok = file:close(ResultDevice),

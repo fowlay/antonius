@@ -1,10 +1,17 @@
 #! /bin/bash
 
-declare -r Root=$HOME/antonius
-declare -r Bytecodes=$Root/ebin
+
+
+declare -r ScriptDir=$0
+
+cd $ScriptDir/..
+
+declare -r Root=`pwd`
+declare -r BytecodeDir=$Root/ebin
+declare -r LibDir=$Root/lib
 
 erl \
   -noshell \
-  -pa $Bytecodes \
-  -run xbi_controller start arg1 \
-  -run erlang halt
+  -pa $BytecodeDir \
+  -run xbi_controller start $LibDir xboard \
+  -run init stop
