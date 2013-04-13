@@ -39,6 +39,8 @@
 %% API Functions
 %%
 
+-spec start(list()) -> ok.
+
 start([LibPath, Mode]) ->
 	
 	case core_util:initVm(LibPath, list_to_atom(Mode)) of
@@ -63,26 +65,27 @@ start([LibPath, Mode]) ->
 	end,
 	
 	try loop(Xboardrequests, xbi_command:setup()) of
-_ ->
-	log("Controller terminating")
+		_ ->
+			log("Controller terminating"),
+			ok
 	catch
 		throw: X ->
 			log(io_lib:format("caught throw: ~w~n", [X])),
 			log(io_lib:format("stack trace: ~p~n", [erlang:get_stacktrace()])),
-			halt();
+			init:stop();
 		
 		exit: Y ->
 			log(io_lib:format("caught exit: ~w~n", [Y])),
 			log(io_lib:format("stack trace: ~p~n", [erlang:get_stacktrace()])),
-			halt();
+			init:stop();
 		
 		error: Z ->
 			log(io_lib:format("caught error: ~w~n", [Z])),
 			log(io_lib:format("stack trace: ~p~n", [erlang:get_stacktrace()])),
-			halt()
+			init:stop()
 	end.
 
-
+		  
 
 
 

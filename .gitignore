@@ -6,3 +6,4 @@ deps
 *.plt
 *~
 *.d
+dialyzer_plt

@@ -182,11 +182,8 @@ parseSquare(S) ->
 
 
 %% @doc Returns a list of square.
-%%
-%% The return type is not uniform: Either a list of beams,
-%% or a list of squares.
 
--spec getSquares(#piece{}, colour(), #boardMap{}, ppiece()) -> [any()].
+-spec getSquares(#piece{}, colour(), #boardMap{}, ppiece()) -> [#square{}].
 	
 getSquares(#piece{type=queen, square=Square}, ToMove, BoardMap, _MovedPawn) ->
 	#square{rookBeams=RookBeams, bishopBeams=BishopBeams} = Square,

@@ -51,7 +51,7 @@
 %%
 %% The value of init:core_nif/1 is returned.
 
--spec initVm(string(), atom) -> tuple().
+-spec initVm(string(), atom()) -> tuple().
 
 initVm(LibDir, Mode) ->
 	

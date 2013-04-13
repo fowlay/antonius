@@ -75,10 +75,19 @@ message should result.
 Using Eclipse
 -------------
 
-Eclipse with Erlide plugin from erlide.org can be used to browse
-and modify the source. The include files .project and
-.settings/org.erlide.core.prefs define a project that can be
-imported into Eclipse.
+Two Eclipse projects are provided: 'antonius' (the Erlang source)
+and code_nif (functions coded in C).
+
+For the 'antonius' project Eclipse with the Erlide plugin from
+http://erlide.org is needed. For the 'core_nif' project Eclipse
+with the C/C++ development tools is needed. An easy way set up both
+development environments is to download Eclipse CDT from
+http://eclipse.org and then add the Erlide plugin.
+
+The 'core_nif' project refers to Erlang header files for C. To adapt
+the .cproject file to the current Erlang environment, type
+
+    make eclipse-setup
 
 
 Feedback

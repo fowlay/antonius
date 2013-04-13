@@ -174,7 +174,7 @@ ref16_test(C) ->                     test_adapter:run(fileInfo(C), ref16_test).
 
 init_per_suite(Config) ->
 	
-	LibDir = ct:get_config(libDir),
+	LibDir = get_config_string(libDir),
 	ResultFromInit = core_util:initVm(LibDir, test),
 	ct:pal("result from initVm: ~p", [ResultFromInit]),
 
@@ -193,7 +193,19 @@ end_per_testcase(_T, C) ->
     file:close(ResultDevice).
 
 
+
+-spec get_config_string(atom()) -> string().
+
+get_config_string(Key) ->
+	Result = ct:get_config(Key),
+	case is_list(Result) of
+		true ->
+			Result;
+		_ ->
+			"config value type is bad"
+	end.
+
+
 fileInfo(Config) ->
 	{resultDevice, ResultDevice} = lists:keyfind(resultDevice, 1, Config),
 	{ct:get_config(testDir), ResultDevice}.
-
