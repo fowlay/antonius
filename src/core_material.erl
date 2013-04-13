@@ -35,6 +35,7 @@
 %% Exported Functions
 %%
 -export([getSquares/4]).
+-export([getPosValue/4]).
 -export([parse/2]).
 -export([toString/1]).
 -export([create/3]).
@@ -178,7 +179,244 @@ parseSquare(S) ->
 	end.
 
 
+-spec getPosValue(#piece{}, colour(), #boardMap{}, ppiece()) -> smallint().
 
+getPosValue(#piece{type=queen, square=Square}, ToMove, BoardMap, _MovedPawn) ->
+	#square{rookBeams=RookBeams, bishopBeams=BishopBeams} = Square,
+	#board{tuple=BoardTuple} = get(board),
+	getBeamsValue(RookBeams, ToMove, BoardMap, BoardTuple) +
+	getBeamsValue(BishopBeams, ToMove, BoardMap, BoardTuple);
+
+getPosValue(#piece{type=king, square=Square}, ToMove, BoardMap, _MovedPawn) ->
+	#square{kingMoves=KingMoves} = Square,
+	#board{tuple=BoardTuple} = get(board),
+	getMovesValue(KingMoves, ToMove, BoardMap, BoardTuple);
+
+getPosValue(#piece{type=rook, square=Square}, ToMove, BoardMap, _MovedPawn) ->
+	#square{rookBeams=RookBeams} = Square,
+	#board{tuple=BoardTuple} = get(board),
+	getBeamsValue(RookBeams, ToMove, BoardMap, BoardTuple);
+
+getPosValue(#piece{type=bishop, square=Square}, ToMove, BoardMap, _MovedPawn) ->
+	#square{bishopBeams=BishopBeams} = Square,
+	#board{tuple=BoardTuple} = get(board),
+	getBeamsValue(BishopBeams, ToMove, BoardMap, BoardTuple);
+
+getPosValue(#piece{type=knight, square=Square}, ToMove, BoardMap, _MovedPawn) ->
+	#square{knightJumps=KnightJumps} = Square,
+	#board{tuple=BoardTuple} = get(board),
+	getMovesValue(KnightJumps, ToMove, BoardMap, BoardTuple);
+
+
+getPosValue(#piece{type=whitePawn, square=Square}, ToMove, BoardMap, MovedPawn) ->
+	#square{whitePawnMoves=WhitePawnMoves, whitePawnKills=WhitePawnKills, whitePawnEpSquares=WPES} = Square,
+	#board{tuple=BoardTuple} = get(board),
+
+	getPawnMovesValue(WhitePawnMoves, BoardMap, BoardTuple) +
+
+	getPawnKillsValue(WhitePawnKills, ToMove, BoardMap, BoardTuple) +
+
+	getEpWhiteValue(WPES, ToMove, BoardMap, BoardTuple, MovedPawn);
+
+
+
+getPosValue(#piece{type=blackPawn, square=Square}, ToMove, BoardMap, MovedPawn) ->
+	#square{blackPawnMoves=BlackPawnMoves, blackPawnKills=BlackPawnKills, blackPawnEpSquares=BPES} = Square,
+	#board{tuple=BoardTuple} = get(board),
+
+	getPawnMovesValue(BlackPawnMoves, BoardMap, BoardTuple) +
+
+	getPawnKillsValue(BlackPawnKills, ToMove, BoardMap, BoardTuple) +
+
+	getEpBlackValue(BPES, ToMove, BoardMap, BoardTuple, MovedPawn).
+
+
+-spec getMovesValue([smallint()], colour(), #boardMap{}, #board{}) -> smallint().
+
+getMovesValue([], _, _, _) ->
+	0;
+
+getMovesValue([Index|Tail], ToMove, BoardMap, BoardTuple) ->
+	#square{x=X} = element(Index, BoardTuple),
+	case bmgetbyindex(Index, BoardMap) of
+		null ->
+			xvalue(X) + getMovesValue(Tail, ToMove, BoardMap, BoardTuple);
+
+		#piece{colour=ToMove} ->
+			getMovesValue(Tail, ToMove, BoardMap, BoardTuple);
+		
+		_ ->
+			xvalue(X) + getMovesValue(Tail, ToMove, BoardMap, BoardTuple)
+	end.
+
+
+
+%% doMoves([], _ToMove, _BoardMap, _Board) ->
+%% 	[];
+%% 
+%% doMoves([Index|Tail], ToMove, BoardMap, #board{tuple=Tuple}=B) ->
+%% 	%S = array:get(Index, Array),
+%% 	S = element(Index, Tuple),
+%% 	case bmget(S, BoardMap) of
+%% 		null ->
+%% 			[S|doMoves(Tail, ToMove, BoardMap, B)];
+%% 		#piece{colour=ToMove} ->
+%% 			doMoves(Tail, ToMove, BoardMap, B);
+%% 		_ ->
+%% 			[S|doMoves(Tail, ToMove, BoardMap, B)]
+%% 	end.
+
+
+
+
+-spec getBeamsValue([list()], colour(), #boardMap{}, tuple()) -> smallint().
+		
+getBeamsValue([], _, _, _) ->
+	0;
+
+getBeamsValue([Beam|Tail], ToMove, BoardMap, BoardTuple) ->
+	getBeamValue(Beam, ToMove, BoardMap, BoardTuple) + 
+	getBeamsValue(Tail, ToMove, BoardMap, BoardTuple).
+
+
+-spec getBeamValue([smallint()], colour(), #boardMap{}, tuple()) -> smallint().
+
+getBeamValue([], _, _, _) ->
+	0;
+
+getBeamValue([Index|Tail], ToMove, BoardMap, BoardTuple) ->
+	
+	#square{x=X} = element(Index, BoardTuple),
+	
+	case bmgetbyindex(Index, BoardMap) of
+		
+		null ->
+			%% a free square
+
+			xvalue(X) + getBeamValue(Tail, ToMove, BoardMap, BoardTuple);
+
+		
+		#piece{colour=ToMove} ->
+			0;
+		
+		_ ->
+			xvalue(X)
+	end.
+
+
+
+-spec getPawnMovesValue([smallint()], #boardMap{}, tuple()) -> smallint().
+
+getPawnMovesValue([J], #boardMap{tuple=BMTuple}, BoardTuple) ->
+	#square{tupleIndex=TI, x=X} = element(J, BoardTuple),
+	case element(TI, BMTuple) of
+		null ->
+			xvalue(X);
+		_ ->
+			0
+	end;
+
+getPawnMovesValue([J, K], #boardMap{tuple=BMTuple}, BoardTuple) ->
+	#square{tupleIndex=TI, x=X} = element(J, BoardTuple),
+	case element(TI, BMTuple) of
+		null ->
+			V = xvalue(X),
+			#square{tupleIndex=TI2} = element(K, BoardTuple),
+			case element(TI2, BMTuple) of
+				null ->
+					V+V;
+				_ ->
+					V
+			end;
+		_ ->
+			0
+	end.
+	
+
+-spec getPawnKillsValue([smallint()], colour(), #boardMap{}, tuple()) -> smallint().
+
+getPawnKillsValue([], _ToMove, _BoardMap, _BoardTuple) ->
+	0;
+
+getPawnKillsValue([Index|Tail], ToMove, BoardMap, BoardTuple) ->
+
+	#square{x=X} = element(Index, BoardTuple),
+	
+	case bmgetbyindex(Index, BoardMap) of
+		null ->
+			getPawnKillsValue(Tail, ToMove, BoardMap, BoardTuple);
+		#piece{colour=ToMove} ->
+			getPawnKillsValue(Tail, ToMove, BoardMap, BoardTuple);
+		_ ->
+			xvalue(X) + getPawnKillsValue(Tail, ToMove, BoardMap, BoardTuple)
+	end.
+
+
+
+%% @doc, TODO, eliminate ToMove here...
+
+-spec getEpWhiteValue([smallint()], colour(), #boardMap{}, tuple(), ppiece()) -> smallint().
+
+getEpWhiteValue([], _, _, _, _) ->
+	0;
+
+getEpWhiteValue([Index|Tail], ToMove, BoardMap, BoardTuple, MovedPawn) ->
+	#square{%%blackPawnSkippedSquare=BPSS, 
+			x=Exx} = element(Index, BoardTuple),
+	case bmgetbyindex(Index, BoardMap) of
+		#piece{type=blackPawn}=X ->
+			if
+				X =:= MovedPawn ->
+					%% no need to recurse, there is just one MovedPawn
+					%% no need to check, we could TODO assert that the
+					%% BPSS square is really free
+					xvalue(Exx);
+				true ->
+					getEpWhiteValue(Tail, ToMove, BoardMap, BoardTuple, MovedPawn)
+			end;
+		_ ->
+			getEpWhiteValue(Tail, ToMove, BoardMap, BoardTuple, MovedPawn)
+	end.
+
+
+%% @doc, TODO, eliminate ToMove here...
+
+-spec getEpBlackValue([smallint()], colour(), #boardMap{}, tuple(), ppiece()) -> smallint().
+
+getEpBlackValue([], _, _, _, _) ->
+	0;
+
+getEpBlackValue([Index|Tail], ToMove, BoardMap, BoardTuple, MovedPawn) ->
+	#square{%%whitePawnSkippedSquare=WPSS, 
+			x=Exx} = element(Index, BoardTuple),
+	case bmgetbyindex(Index, BoardMap) of
+		#piece{type=whitePawn}=X ->
+			if
+				X =:= MovedPawn ->
+					%% no need to recurse, there is just one MovedPawn
+					%% no need to check, we could TODO assert that the
+					%% BPSS square is really free
+					xvalue(Exx);
+				true ->
+					getEpBlackValue(Tail, ToMove, BoardMap, BoardTuple, MovedPawn)
+			end;
+		_ ->
+			getEpBlackValue(Tail, ToMove, BoardMap, BoardTuple, MovedPawn)
+	end.
+
+
+
+
+
+-compile({inline,[xvalue/1]}).
+
+xvalue(X) ->
+	if
+		X < 5 ->
+			4 + X;
+		true ->
+			13 - X
+	end.
 
 
 %% @doc Returns a list of square.
@@ -563,6 +801,14 @@ lookup([_|Tail], Square) ->
 
 bmget(#square{tupleIndex=TupleIndex}, #boardMap{tuple=Tuple}) ->
 	element(TupleIndex, Tuple).
+
+
+-compile({inline,[bmgetbyindex/2]}).
+
+bmgetbyindex(TupleIndex, #boardMap{tuple=Tuple}) ->
+	element(TupleIndex, Tuple).
+	
+
 
 %% --------
 

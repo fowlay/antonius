@@ -82,6 +82,9 @@
 
 -export([loss/3]).
 
+%% TODO, remove if optimizing was good
+-export([coverageValueHelper/2]).
+
 
 %%
 %% API Functions
@@ -249,9 +252,16 @@ create(White, Black, ToMove, MovedPawn, IsWhiteCastled, IsBlackCastled) ->
 eval3([], _BoardMap, _MovedPawn) ->
 	0;
 
+%% eval3([#piece{value=V, colour=C}=P|Tail], BoardMap, MovedPawn) ->
+%% 	Squares = core_material:getSquares(P, C, BoardMap, MovedPawn),
+%% 	V + coverageValueHelper(Squares, 0) + eval3(Tail, BoardMap, MovedPawn).
+
+
 eval3([#piece{value=V, colour=C}=P|Tail], BoardMap, MovedPawn) ->
-	Squares = core_material:getSquares(P, C, BoardMap, MovedPawn),
-	V + coverageValueHelper(Squares, 0) + eval3(Tail, BoardMap, MovedPawn).
+	
+	PosValue = core_material:getPosValue(P, C, BoardMap, MovedPawn),
+	
+	V + PosValue + eval3(Tail, BoardMap, MovedPawn).
 
 
 
