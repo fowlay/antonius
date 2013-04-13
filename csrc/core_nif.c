@@ -50,48 +50,41 @@ static ERL_NIF_TERM createTupleFromArray(ErlNifEnv *env, int argc, const ERL_NIF
 #define ELEMENT_PIECE_SQUARE 3
 #define ELEMENT_SQUARE_TUPLEINDEX 7
 
-// TODO, handle the errors by at least returning an {error, ..}
-
 static ERL_NIF_TERM createPiecesMap(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
 
 	ERL_NIF_TERM arr[64];
 	for (int j = 0; j < 64; j++) {
 		arr[j] = argv[ATOM_NULL];
 	}
-	ERL_NIF_TERM head;
-	ERL_NIF_TERM tail;
-	const ERL_NIF_TERM *pieceTupleArray;
-	int pieceArity;
-	ERL_NIF_TERM square;
-	const ERL_NIF_TERM *squareTupleArray;
-	ERL_NIF_TERM tupleIndex;
-	int tupleIndexInt;
-	int squareArity;
+
 	for (int material = MATERIAL_WHITE;
 			material == MATERIAL_WHITE || material == MATERIAL_BLACK;
 			material++) {
 		for (ERL_NIF_TERM m = argv[material]; true; ) {
-
+			ERL_NIF_TERM head;
+			ERL_NIF_TERM tail;
 			if (enif_get_list_cell(env, m, &head, &tail) == 0) {
 				// list exhausted, fine
 				break;
 			}
 			else {
-				if (enif_get_tuple(env, head, &pieceArity, &pieceTupleArray) == 0) {
-					// very bad...
-					break;
+				const ERL_NIF_TERM *pieceTupleArray;
+				int pieceArity;
+				if (enif_get_tuple(env, head, &pieceArity, &pieceTupleArray) == false) {
+					return enif_make_badarg(env);
 				}
 				else {
-					square = pieceTupleArray[ELEMENT_PIECE_SQUARE];
-					if (enif_get_tuple(env, square, &squareArity, &squareTupleArray) == 0) {
-						// even more bad...
-						break;
+					const ERL_NIF_TERM square = pieceTupleArray[ELEMENT_PIECE_SQUARE];
+					const ERL_NIF_TERM *squareTupleArray;
+					int squareArity;
+					if (enif_get_tuple(env, square, &squareArity, &squareTupleArray) == false) {
+						return enif_make_badarg(env);
 					}
 					else {
-						tupleIndex = squareTupleArray[ELEMENT_SQUARE_TUPLEINDEX];
-						if (enif_get_int(env, tupleIndex, &tupleIndexInt) == 0) {
-							// bad bad bad...
-							break;
+						const ERL_NIF_TERM tupleIndex = squareTupleArray[ELEMENT_SQUARE_TUPLEINDEX];
+						int tupleIndexInt;
+						if (enif_get_int(env, tupleIndex, &tupleIndexInt) == false) {
+							return enif_make_badarg(env);
 						}
 						else {
 							arr[tupleIndexInt-1] = head;
@@ -105,6 +98,21 @@ static ERL_NIF_TERM createPiecesMap(ErlNifEnv *env, int argc, const ERL_NIF_TERM
 	const ERL_NIF_TERM tuple = enif_make_tuple_from_array(env, arr, 64);
 	return enif_make_tuple2(env, argv[ATOM_BOARDMAP], tuple);
 }
+
+
+///**
+// * Returns an Erlang atom with the given name. The atom is created
+// * if it does not already exist.
+// */
+//static ERL_NIF_TERM intern(ErlNifEnv *env, const char *atomName, ERL_NIF_LATIN1) {
+//	ERL_NIF_TERM * const atom;
+//	if (enif_make_existing_atom(env, atomName, &atom, ERL_NIF_LATIN1)) {
+//		return *atom;
+//	}
+//	else {
+//		return enif_make_atom(env, atomName);
+//	}
+//}
 
 static ErlNifFunc nif_funcs[] = {
 	{"createPiecesMap", 4, createPiecesMap}

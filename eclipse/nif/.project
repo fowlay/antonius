@@ -23,11 +23,4 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>csrc</name>
-			<type>2</type>
-			<location>/home/erarafo/wednesday/antonius/csrc</location>
-		</link>
-	</linkedResources>
 </projectDescription>
