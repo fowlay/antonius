@@ -24,6 +24,7 @@ SOURCE = $(wildcard src/*.erl)
   ebin \
   hdeps \
   lib \
+  eclipse-setup \
   tsrc \
   clean \
   distclean
@@ -39,6 +40,8 @@ help:
 	@echo "dialyze        Check against type errors"
 	@echo "game-cli       Play a game in the console"
 	@echo "game-xboard    Play a game using xboard"
+	@echo ""
+	@echo "eclipse-setup  Adapt Eclipse C project setup to current Erlang environment"
 	@echo ""
 	@echo "tsrc           Rebuild the tests tarball"
 	@echo "clean          Remove most built objects"
@@ -98,6 +101,11 @@ lib:
 
 tsrc:
 	$(MAKE) -C $@
+
+
+eclipse-setup:
+	@echo -n "Close down Eclipse, then push Enter: " && read _
+	@bin/eclipse-setup.sh
 
 
 clean distclean:
