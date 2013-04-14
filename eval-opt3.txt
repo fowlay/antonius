@@ -1,0 +1,4 @@
+Attempt to optimize by introducing "lanes": lists of lists
+of squares, instead of lists of lists of tupleIndex values.
+
+No gain seen so far.
