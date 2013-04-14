@@ -16,7 +16,15 @@
 
 %% Author: erarafo
 %% Created: Sep 30, 2011
-%% Description: TODO: Add description to square
+%% Description: This module provides functions for creating and accessing
+%% the squares that make up the chessboard. Exactly 64 instances are
+%% created at setup time. Each instance holds structures that represent
+%% the connectivity of the chessboard; for example the a1 square has two
+%% "rookbeams" consisting of references to squares a2, a3, ..., a8 and
+%% b1, c1, ..., h1, which are the squares that a rook located at a1 can
+%% reach.
+
+
 -module(core_square).
 
 %% -include_lib("eunit/include/eunit.hrl").

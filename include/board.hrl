@@ -18,12 +18,14 @@
 -define(HRL_BOARD, true).
 
 
+%% @doc All tuples are indexed 1..64.
+
 -record(board, {
-				tuple,
-				dict
+				tuple           :: tuple(),
+				dict            :: dict(),
+				rookLanes       :: tuple(),
+				bishopLanes     :: tuple(),
+				queenLanes      :: tuple(),
+				knightJumps     :: tuple(),
+				kingMoves       :: tuple()
   }).
-
-
-
-
-

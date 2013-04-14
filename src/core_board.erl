@@ -77,10 +77,21 @@ getSquare(Name) ->
 %% Local Functions
 %%
 
+%% @doc Creates the board, which is a record holding a 64-element
+%% tuple of squares and a dict that maps namestrings such as "e4"
+%% to the same squares.
+
 -spec create() -> #board{}.
 
 create() ->
-	create(0, 64, dict:new(), erlang:make_tuple(64, null)).
+	#board{dict=Dict, tuple=BoardTuple} = create(0, 64, dict:new(), erlang:make_tuple(64, null)),
+	#board{
+		   dict=Dict,
+		   tuple=BoardTuple,
+		   rookLanes=createLanes(BoardTuple, rook),
+		   bishopLanes=createLanes(BoardTuple, bishop),
+		   queenLanes=createLanes(BoardTuple, queen)
+		  }.
 
 
 
@@ -125,6 +136,36 @@ file(Letter) ->
 		_ ->
 			core_util:inconsistencyException("cannot find file number for: ~s", [Letter])
 	end.
+
+
+-spec createLanes(tuple(), atom()) -> tuple().
+
+createLanes(BoardTuple, PieceType) ->
+	createLanes(BoardTuple, PieceType, 1, []).
+
+createLanes(_, _, 65, R) ->
+	list_to_tuple(lists:reverse(R));
+
+createLanes(BoardTuple, PieceType, J, R) ->
+	Beams = 
+		case PieceType of
+			rook ->
+				#square{rookBeams=RB} = element(J, BoardTuple),
+				RB;
+			bishop ->
+				#square{bishopBeams=BB} = element(J, BoardTuple),
+				BB;
+			queen ->
+				#square{rookBeams=RB} = element(J, BoardTuple),
+				#square{bishopBeams=BB} = element(J, BoardTuple),
+				RB++BB
+		end,
+	
+	Lanes = [[element(K, BoardTuple) || K <- Beam] || Beam <- Beams],
+	createLanes(BoardTuple, PieceType, J+1, [Lanes|R]).
+	
+
+
 
 
 board_test() ->

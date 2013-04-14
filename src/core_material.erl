@@ -182,10 +182,14 @@ parseSquare(S) ->
 -spec getPosValue(#piece{}, colour(), #boardMap{}, ppiece()) -> smallint().
 
 getPosValue(#piece{type=queen, square=Square}, ToMove, BoardMap, _MovedPawn) ->
-	#square{rookBeams=RookBeams, bishopBeams=BishopBeams} = Square,
-	#board{tuple=BoardTuple} = get(board),
-	getBeamsValue(RookBeams, ToMove, BoardMap, BoardTuple) +
-	getBeamsValue(BishopBeams, ToMove, BoardMap, BoardTuple);
+	#square{tupleIndex=J} = Square,
+	#board{queenLanes=Lanes} = get(board),
+	
+%% 	getBeamsValue(RookBeams, ToMove, BoardMap, BoardTuple) +
+%% 	getBeamsValue(BishopBeams, ToMove, BoardMap, BoardTuple);
+	getLanesValue(element(J, Lanes), ToMove, BoardMap);
+
+
 
 getPosValue(#piece{type=king, square=Square}, ToMove, BoardMap, _MovedPawn) ->
 	#square{kingMoves=KingMoves} = Square,
@@ -266,6 +270,31 @@ getMovesValue([Index|Tail], ToMove, BoardMap, BoardTuple) ->
 %% 			[S|doMoves(Tail, ToMove, BoardMap, B)]
 %% 	end.
 
+
+getLanesValue([], _, _) ->
+	0;
+
+getLanesValue([Lane|Tail], ToMove, BoardMap) ->
+	getLaneValue(Lane, ToMove, BoardMap) + 
+	getLanesValue(Tail, ToMove, BoardMap).
+
+
+
+getLaneValue([], _, _) ->
+	0;
+
+getLaneValue([#square{x=X, tupleIndex=Index}|Tail], ToMove, BoardMap) ->
+	case bmgetbyindex(Index, BoardMap) of
+		null ->
+			%% a free square
+			xvalue(X) + getLaneValue(Tail, ToMove, BoardMap);
+		#piece{colour=ToMove} ->
+			0;
+		_ ->
+			xvalue(X)
+	end.
+	
+	
 
 
 
