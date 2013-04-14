@@ -63,7 +63,7 @@ static ERL_NIF_TERM createPiecesMap(ErlNifEnv *env, int argc, const ERL_NIF_TERM
 		for (ERL_NIF_TERM m = argv[material]; true; ) {
 			ERL_NIF_TERM head;
 			ERL_NIF_TERM tail;
-			if (enif_get_list_cell(env, m, &head, &tail) == 0) {
+			if (enif_get_list_cell(env, m, &head, &tail) == false) {
 				// list exhausted, fine
 				break;
 			}
@@ -100,6 +100,35 @@ static ERL_NIF_TERM createPiecesMap(ErlNifEnv *env, int argc, const ERL_NIF_TERM
 }
 
 
+#define SQUARE_X 1
+
+static ERL_NIF_TERM coverageValueHelper(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
+
+	int result;
+	enif_get_int(env, argv[1], &result);
+
+	for (ERL_NIF_TERM m = argv[0]; true; ) {
+		ERL_NIF_TERM head;
+		ERL_NIF_TERM tail;
+		if (enif_get_list_cell(env, m, &head, &tail) == false) {
+			break;
+		}
+		else {
+			const ERL_NIF_TERM *square;
+			int squareArity;
+			enif_get_tuple(env, head, &squareArity, &square);
+			ERL_NIF_TERM x = square[SQUARE_X];
+			int xValue;
+			enif_get_int(env, x, &xValue);
+
+			result += xValue < 5 ? xValue + 4 : 13 - xValue;
+		}
+		m = tail;
+	}
+	return enif_make_int(env, result);
+}
+
+
 ///**
 // * Returns an Erlang atom with the given name. The atom is created
 // * if it does not already exist.
@@ -115,7 +144,8 @@ static ERL_NIF_TERM createPiecesMap(ErlNifEnv *env, int argc, const ERL_NIF_TERM
 //}
 
 static ErlNifFunc nif_funcs[] = {
-	{"createPiecesMap", 4, createPiecesMap}
+	{"createPiecesMap", 4, createPiecesMap},
+	{"coverageValueHelper", 2, coverageValueHelper}
 };
 
 ERL_NIF_INIT(core_nif, nif_funcs, NULL, NULL, NULL, NULL)

@@ -26,6 +26,9 @@
 -type sqnum()   :: 1..64.
 -type xsqnum()  :: 0..64.
 
+%% NOTE: The order of fields is frozen up to tupleIndex (the exact order
+%% is relied upon by NIFs).
+
 -record(square, {
 				% fileValue                 :: smallint(),
 				 x                         :: filenum(),

@@ -22,6 +22,7 @@
 
 -export([init/1]).
 -export([createPiecesMap/4]).
+-export([coverageValueHelper/2]).
 
 
 %% @doc Load the C version of certain functions.
@@ -40,5 +41,9 @@ init(LibDir) ->
 
 createPiecesMap(White, Black, _BoardMap, _Null) ->
 	core_boardmap:createPiecesMap(White, Black).
+
+
+coverageValueHelper(Squares, Bias) ->
+	core_node:coverageValueHelper(Squares, Bias).
 
 

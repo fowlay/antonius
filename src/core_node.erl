@@ -83,6 +83,10 @@
 -export([loss/3]).
 
 
+%% used as fallback for NIF
+-export([coverageValueHelper/2]).
+
+
 %%
 %% API Functions
 %%
@@ -251,7 +255,7 @@ eval3([], _BoardMap, _MovedPawn) ->
 
 eval3([#piece{value=V, colour=C}=P|Tail], BoardMap, MovedPawn) ->
 	Squares = core_material:getSquares(P, C, BoardMap, MovedPawn),
-	V + coverageValueHelper(Squares, 0) + eval3(Tail, BoardMap, MovedPawn).
+	V + core_nif:coverageValueHelper(Squares, 0) + eval3(Tail, BoardMap, MovedPawn).
 
 
 
