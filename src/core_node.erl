@@ -620,8 +620,97 @@ makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N
 -spec newOwnMaterial(#node{}, [#piece{}], #square{}, #square{}) -> [#piece{}].
 
 newOwnMaterial(#node{pieces=BoardMap}, Material, From, To) ->
-	#piece{type=Type, colour=Colour} = bmget(From, BoardMap),
-	remove(From, insertPiece(Type, Colour, To, Material)).
+	P = bmget(From, BoardMap),
+	
+	%%#piece{type=Type, colour=Colour}=
+
+	movePiece(Material, P, To).
+	
+	%%remove(From, insertPiece(Type, Colour, To, Material)).
+
+%% 	B = remove(From, insertPiece(Type, Colour, To, Material)),
+%% 	A = movePiece(Material, P, To),
+%% 	case A of
+%% 		B ->
+%% 			io:format(user, "fine ---------~n", []),
+%% 			ok;
+%% 		_ ->
+%% 			if 
+%% 				length(A) =/= length(B) ->
+%% 					io:format(user, "length check ++++++++++++", []), ct:fail();
+%% 				true ->
+%% 					ok
+%% 			end,
+%% 			io:format(user, "bad A: ~p", [A]), ct:fail()
+%% 	end,
+%% 			
+%% 	B.
+
+
+-spec morder(#piece{}) -> smallint().
+
+-compile({inline,[morder/1]}).
+
+morder(#piece{order=U, square=#square{tupleIndex=J}}) ->
+	U+J.
+
+
+%% @doc The given Piece at square From is in Material and shall be moved to
+%% square To. This is not a case of promotion of course.
+
+-spec movePiece([#piece{}], #piece{}, #square{}) -> [#piece{}].
+
+movePiece(Material, Piece, To) ->
+	MovedPiece = Piece#piece{square=To, pristine=false},
+	MM = morder(MovedPiece),
+	movePiece(Material, Piece, MovedPiece, MM).
+
+-spec movePiece([#piece{}], #piece{}, #piece{}, smallint()) -> [#piece{}].
+
+movePiece([Piece|Tail], Piece, MovedPiece, MM) ->
+	insPiece(Tail, MovedPiece, MM);
+
+movePiece([Head|Tail]=Pieces, Piece, MovedPiece, MM) ->
+	MH = morder(Head),
+	if
+		MM < MH ->
+			[MovedPiece|remPiece(Pieces, Piece)];
+		true ->
+			[Head|movePiece(Tail, Piece, MovedPiece, MM)]
+	end.
+
+
+-spec insPiece([#piece{}], #piece{}, smallint()) -> [#piece{}].
+
+insPiece([], Piece, _) ->
+	[Piece];
+
+insPiece([Head|Tail]=Pieces, Piece, M) ->
+	MH = morder(Head),
+	if 
+		M < MH ->
+			[Piece|Pieces];
+		true ->
+			[Head|insPiece(Tail, Piece, M)]
+	end.
+
+
+-spec remPiece([#piece{}], #piece{}) -> [#piece{}].
+
+%% remPiece([], _) ->
+%% 	core_util:inconsistencyException("TODO, remove this case altogether");
+
+remPiece([Piece|Tail], Piece) ->
+	Tail;
+
+remPiece([Head|Tail], Piece) ->
+	[Head|remPiece(Tail, Piece)].
+
+
+
+
+
+
 
 
 %% @doc In promotion context.
