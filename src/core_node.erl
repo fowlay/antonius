@@ -601,7 +601,8 @@ makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N
 	create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC).
 
 
-%% @doc Promotion context.
+%% @doc Promotion context. The 4th argument specifies one of
+%% queen, rook, bishop or knight.
 
 -spec makeMove(#node{}, #square{}, #square{}, atom()) -> #node{}.
 
@@ -621,63 +622,36 @@ makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N
 
 newOwnMaterial(#node{pieces=BoardMap}, Material, From, To) ->
 	P = bmget(From, BoardMap),
-	
-	%%#piece{type=Type, colour=Colour}=
-
 	movePiece(Material, P, To).
 	
-	%%remove(From, insertPiece(Type, Colour, To, Material)).
-
-%% 	B = remove(From, insertPiece(Type, Colour, To, Material)),
-%% 	A = movePiece(Material, P, To),
-%% 	case A of
-%% 		B ->
-%% 			io:format(user, "fine ---------~n", []),
-%% 			ok;
-%% 		_ ->
-%% 			if 
-%% 				length(A) =/= length(B) ->
-%% 					io:format(user, "length check ++++++++++++", []), ct:fail();
-%% 				true ->
-%% 					ok
-%% 			end,
-%% 			io:format(user, "bad A: ~p", [A]), ct:fail()
-%% 	end,
-%% 			
-%% 	B.
 
 
--spec morder(#piece{}) -> smallint().
-
--compile({inline,[morder/1]}).
-
-morder(#piece{order=U, square=#square{tupleIndex=J}}) ->
-	U+J.
-
-
-%% @doc The given Piece at square From is in Material and shall be moved to
-%% square To. This is not a case of promotion of course.
+%% @doc The given Piece at square From is in Material and shall be
+%% moved to the To square. This is not a case of promotion of course.
+%% This function is optimal in the sense that as few list cells as
+%% possible are created.
 
 -spec movePiece([#piece{}], #piece{}, #square{}) -> [#piece{}].
 
 movePiece(Material, Piece, To) ->
-	MovedPiece = Piece#piece{square=To, pristine=false},
-	MM = morder(MovedPiece),
-	movePiece(Material, Piece, MovedPiece, MM).
+	#piece{order=U, square=#square{tupleIndex=J}}=MovedPiece = Piece#piece{square=To, pristine=false},
+	movePiece(Material, Piece, MovedPiece, U+J).
+
+
 
 -spec movePiece([#piece{}], #piece{}, #piece{}, smallint()) -> [#piece{}].
 
 movePiece([Piece|Tail], Piece, MovedPiece, MM) ->
 	insPiece(Tail, MovedPiece, MM);
 
-movePiece([Head|Tail]=Pieces, Piece, MovedPiece, MM) ->
-	MH = morder(Head),
+movePiece([#piece{order=U, square=#square{tupleIndex=J}}=Head|Tail]=Pieces, Piece, MovedPiece, MM) ->
 	if
-		MM < MH ->
+		MM < U+J ->
 			[MovedPiece|remPiece(Pieces, Piece)];
 		true ->
 			[Head|movePiece(Tail, Piece, MovedPiece, MM)]
 	end.
+
 
 
 -spec insPiece([#piece{}], #piece{}, smallint()) -> [#piece{}].
@@ -685,10 +659,9 @@ movePiece([Head|Tail]=Pieces, Piece, MovedPiece, MM) ->
 insPiece([], Piece, _) ->
 	[Piece];
 
-insPiece([Head|Tail]=Pieces, Piece, M) ->
-	MH = morder(Head),
+insPiece([#piece{order=U, square=#square{tupleIndex=J}}=Head|Tail]=Pieces, Piece, M) ->
 	if 
-		M < MH ->
+		M < U+J ->
 			[Piece|Pieces];
 		true ->
 			[Head|insPiece(Tail, Piece, M)]
@@ -713,7 +686,9 @@ remPiece([Head|Tail], Piece) ->
 
 
 
-%% @doc In promotion context.
+%% @doc In promotion context. The Type argument specifies one of
+%% queen, rook, bishop or knight. Note that the piece being
+%% removed is of a different type than the one being inserted.
 
 -spec newOwnMaterial(colour(), [#piece{}], #square{}, atom(), #square{}) -> [#piece{}].
 
@@ -781,7 +756,9 @@ remove(Square, [Piece|Tail]) ->
 
 
 %% @doc Inserts the indicated piece (it is created
-%% non-pristine) into the given material.
+%% non-pristine) into the given material. Note that
+%% since the introduction of movePiece/3 this function
+%% is no longer time-critical.
 %%
 %% TODO: Performance: pieceType lookup is done
 %% at every recursion.
@@ -801,13 +778,8 @@ insertPiece(Type, Colour, Square, []) ->
 
 insertPiece(Type, Colour, #square{tupleIndex=IN}=Square, [#piece{order=MO, square=#square{tupleIndex=MN}}=H|Tail]=M) ->
 	#pieceType{order=IO} = core_piecetype:pieceType(Type),
-	
-	%% peerorder
 	InserteeOrder = IO + IN,
-	
-	%% myorder
 	HeadOrder = MO + MN,
-	
 	if
 		InserteeOrder < HeadOrder ->
 			[core_material:create(Type, Colour, Square)|M];
@@ -824,13 +796,8 @@ insertPiece(Material, []) ->
 insertPiece(#piece{type=Type, square=#square{tupleIndex=IN}}=Material, 
 			[#piece{order=MO, square=#square{tupleIndex=MN}}=H|Tail]=M) ->
 	#pieceType{order=IO} = core_piecetype:pieceType(Type),
-	
-	%% peerorder
 	InserteeOrder = IO + IN,
-	
-	%% myorder
 	HeadOrder = MO + MN,
-	
 	if
 		InserteeOrder < HeadOrder ->
 			[Material|M];
