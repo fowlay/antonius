@@ -84,7 +84,7 @@ create() ->
 
 
 
--spec create(smallint(), smallint(), dict(), tuple()) -> #board{}.
+-spec create(smallint(), smallint(), dict:dict(), tuple()) -> #board{}.
 
 create(J, N, Dict, Tuple) when J =:= N ->
 	#board{dict=Dict, tuple=Tuple};
