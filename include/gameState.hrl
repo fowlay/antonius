@@ -31,5 +31,5 @@
 -record(gameState, {
 				nodes         :: [#statenode{}],
 				abResults     :: [tuple()],
-				repeatCount	  :: dict()
+				repeatCount	  :: dict:dict()
   }).
