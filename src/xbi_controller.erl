@@ -69,19 +69,19 @@ start([LibPath, Mode]) ->
 			log("Controller terminating"),
 			ok
 	catch
-		throw: X ->
+		throw:X:Stack ->
 			log(io_lib:format("caught throw: ~w~n", [X])),
-			log(io_lib:format("stack trace: ~p~n", [erlang:get_stacktrace()])),
+			log(io_lib:format("stack trace: ~p~n", [Stack])),
 			init:stop();
 		
-		exit: Y ->
+		exit:Y:Stack ->
 			log(io_lib:format("caught exit: ~w~n", [Y])),
-			log(io_lib:format("stack trace: ~p~n", [erlang:get_stacktrace()])),
+			log(io_lib:format("stack trace: ~p~n", [Stack])),
 			init:stop();
 		
-		error: Z ->
+		error:Z:Stack ->
 			log(io_lib:format("caught error: ~w~n", [Z])),
-			log(io_lib:format("stack trace: ~p~n", [erlang:get_stacktrace()])),
+			log(io_lib:format("stack trace: ~p~n", [Stack])),
 			init:stop()
 	end.
 

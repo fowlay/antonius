@@ -104,7 +104,7 @@ inconsistencyException(Format, Items) ->
 -spec strings_to_io_device([string()]) -> {ok, i_device()}.
 
 strings_to_io_device(List) ->
-	FileName = ?TEMP_FILE_DIRECTORY ++ "/" ++ os:getpid() ++ "-" ++ integer_to_list(random:uniform(1000000000)),
+	FileName = ?TEMP_FILE_DIRECTORY ++ "/" ++ os:getpid() ++ "-" ++ integer_to_list(rand:uniform(1000000000)),
 	case file:open(FileName, [write]) of
 		{error, Reason} ->
 			core_util:inconsistencyException("failed to write file, reason: ~p", [Reason]);

@@ -140,15 +140,15 @@ play(Echo, BreakOnException, InputDevice, ResultDevice) ->
 	catch
 		throw:(#exception{type=userException}) ->
 			throw({throw, core_gamestate:getCurrentNode(), null});
-		throw: X ->
-			erlang:display(erlang:get_stacktrace()),
+		throw:X:Stack ->
+			erlang:display(Stack),
 			{ok, GameState} = core_state:sget(gameState),
 			throw({throw, GameState, X});
-		error: X ->
-			erlang:display(erlang:get_stacktrace()),
+		error:X:Stack ->
+			erlang:display(Stack),
 			throw({error, X});
-		exit: X ->
-			erlang:display(erlang:get_stacktrace()),
+		exit:X:Stack ->
+			erlang:display(Stack),
 			throw({exit, X})
 	end.
 
@@ -222,13 +222,13 @@ playLoop(Echo, InputDevice, BreakOnException, ResultDevice) ->
 											io:fwrite(standard_error, "caught: ~p~n", [E]),
 											throw(E)
 									end;
-								exit: Y ->
+								exit:Y:Stack ->
 									io:fwrite(standard_error, "caught exit: ~w~n", [Y]),
-									io:fwrite(standard_error, "stack trace: ~p~n", [erlang:get_stacktrace()]),
+									io:fwrite(standard_error, "stack trace: ~p~n", [Stack]),
        								exit(Y);
-								error: Z ->
+								error:Z:Stack ->
 									io:fwrite(standard_error, "caught error: ~w~n", [Z]),
-									io:fwrite(standard_error, "stack trace: ~p~n", [erlang:get_stacktrace()]),
+									io:fwrite(standard_error, "stack trace: ~p~n", [Stack]),
 									error(Z)
 							end
 					
