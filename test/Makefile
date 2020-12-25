@@ -16,3 +16,4 @@ clean:
 
 distclean: clean
 	rm -rf [a-z]*
+
