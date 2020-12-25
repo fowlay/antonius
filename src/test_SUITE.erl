@@ -22,6 +22,7 @@
 -export([all/0]).
 -export([groups/0]).
 -export([init_per_suite/1]).
+-export([end_per_suite/1]).
 -export([init_per_testcase/2]).
 -export([end_per_testcase/2]).
 
@@ -182,6 +183,9 @@ init_per_suite(Config) ->
     {ok, ResultDevice} = file:open(ResultFile, [write]),
     ok = file:close(ResultDevice),
     [{resultFile, ResultFile}|Config].
+
+end_per_suite(_Config) ->
+	ok.
 
 init_per_testcase(_T, C) ->
     {resultFile, ResultFile} = lists:keyfind(resultFile, 1, C),

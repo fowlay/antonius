@@ -27,7 +27,8 @@ SOURCE = $(wildcard src/*.erl)
   eclipse-setup \
   tsrc \
   clean \
-  distclean
+  distclean \
+  files
 
 
 help:
@@ -46,6 +47,7 @@ help:
 	@echo "tsrc           Rebuild the tests tarball"
 	@echo "clean          Remove most built objects"
 	@echo "distclean      Remove all built objects"
+	@echo "files          Report all files"
 	@echo ""
 
 
@@ -111,3 +113,6 @@ eclipse-setup:
 clean distclean:
 	for dir in $(SUBDIRS); do $(MAKE) -C $$dir $@; done
 	rm -f erl_crash.dump
+
+files:
+	(find . -maxdepth 1 -type f |sed -e 's/^..//'; find [a-z]* -mindepth 1 -type f >&1) | sort
