@@ -179,59 +179,46 @@ playLoop(Echo, InputDevice, BreakOnException, ResultDevice) ->
 				[] ->
 					playLoop(Echo, InputDevice, BreakOnException, ResultDevice);
 				[CommandName | Arguments] ->
-					
-					
-					
-					
-					
-					
-					
-					
-		
+					try apply(cmd_dict:getFunction(CommandName, Arguments), [Arguments]) of
+						#cmdresult{proceed=false} ->
+							ok;
+						
+						#cmdresult{proceed=true}=CR ->
 
-					
-
-							try apply(cmd_dict:getFunction(CommandName, Arguments), [Arguments]) of
-								#cmdresult{proceed=false} ->
-									ok;
-								
-								#cmdresult{proceed=true}=CR ->
-					
-
-									display(ResultDevice, CR),
-									playLoop(Echo, InputDevice, BreakOnException, ResultDevice);
-
-								Other-> % TODO, eliminate after static analysis
-									core_util:inconsistencyException("ill-formed function result: ~w~n", [Other])
-							catch
-								throw: E ->
-									case E of
-										#exception{type=userException} ->
-											
-											cli_frame:display(ResultDevice, cli_frame:wrapException(E)),
-											case BreakOnException of
-												true ->
-													throw(E);
-												_ ->
-                                                    playLoop(Echo, InputDevice, BreakOnException, ResultDevice)
-											end;
-										#exception{type=inconsistencyException} ->
-											cli_frame:display(ResultDevice, cli_frame:wrapException(E)),
+							display(ResultDevice, CR),
+							playLoop(Echo, InputDevice, BreakOnException, ResultDevice);
+						
+						Other-> % TODO, eliminate after static analysis
+							core_util:inconsistencyException("ill-formed function result: ~w~n", [Other])
+					catch
+						throw: E ->
+							case E of
+								#exception{type=userException} ->
+									
+									cli_frame:display(ResultDevice, cli_frame:wrapException(E)),
+									case BreakOnException of
+										true ->
 											throw(E);
 										_ ->
-											io:fwrite(standard_error, "caught: ~p~n", [E]),
-											throw(E)
+											playLoop(Echo, InputDevice, BreakOnException, ResultDevice)
 									end;
-								exit:Y:Stack ->
-									io:fwrite(standard_error, "caught exit: ~w~n", [Y]),
-									io:fwrite(standard_error, "stack trace: ~p~n", [Stack]),
-       								exit(Y);
-								error:Z:Stack ->
-									io:fwrite(standard_error, "caught error: ~w~n", [Z]),
-									io:fwrite(standard_error, "stack trace: ~p~n", [Stack]),
-									error(Z)
-							end
-					
+								#exception{type=inconsistencyException} ->
+									cli_frame:display(ResultDevice, cli_frame:wrapException(E)),
+									throw(E);
+								_ ->
+									io:fwrite(standard_error, "caught: ~p~n", [E]),
+									throw(E)
+							end;
+						exit:Y:Stack ->
+							io:fwrite(standard_error, "caught exit: ~w~n", [Y]),
+							io:fwrite(standard_error, "stack trace: ~p~n", [Stack]),
+							exit(Y);
+						error:Z:Stack ->
+							io:fwrite(standard_error, "caught error: ~w~n", [Z]),
+							io:fwrite(standard_error, "stack trace: ~p~n", [Stack]),
+							error(Z)
+					end
+			
 			end
 	end.
 

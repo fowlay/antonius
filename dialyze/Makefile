@@ -14,7 +14,7 @@ dialyzer_plt:
 	dialyzer \
 	  --build_plt \
 	  --output_plt $@ \
-	  --apps erts kernel stdlib compiler common_test eunit test_server \
+	  --apps erts kernel stdlib compiler common_test eunit \
 	|| true
 
 
