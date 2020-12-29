@@ -1,0 +1,38 @@
+
+
+Renaming
+
+Since the protocol over TCP is not ICS, then name modules other than
+ics_*.
+
+Refactoring - server modules
+
+Many server modules use explicit loops. Convert to gen_server.
+
+
+Logging
+
+Introduce log levels. Log to a single common log, or per-session logs?
+
+
+Per-session depth
+
+How can the search depth be set independently per session? Is setting
+the depth a UI action?
+
+
+Orderly termination of an xboard client
+
+Assuming that xboard sends a final "quit\n" and then closes the output
+stream, how should the TCP connection be handled gracefully?
+
+Making xboard sessions independent
+
+Currently sessions use a common key-value store with non-unique
+keys. Either keep the key-value store using session-unique keys, or
+redesign so that the key-value store is eliminated altogether.
+
+
+Running on Cygwin/X
+
+Can it be done?

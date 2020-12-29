@@ -53,7 +53,7 @@ execute(Command, Arguments, Dict) ->
 		Nargs ->
 			true;
 		OtherSize ->
-			core_util:inconsistencyException("command: ~s, wrong number of arguments, expected: ~w, actual: ~w", [Command, Nargs, OtherSize])
+			core_util:inconsistencyException("command: ~s, wrong number of arguments, expected: ~p, actual: ~p", [Command, Nargs, OtherSize])
 	end,
 	apply(Fun, [Arguments]).
 	

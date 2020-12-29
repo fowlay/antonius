@@ -24,6 +24,7 @@
 %%
 
 -include("antonius.hrl").
+-include("exception.hrl").
 
 %%
 %% Exported Functions
@@ -35,13 +36,24 @@
 -export([stdout/1]).
 -export([stdout/2]).
 
-%%
-%% API Functions
-%%
+%% @doc Invoked directly from xboard-wrapper.sh when Mode==single, or from ics_session.
+%% Valid values for Mode are: "xboard", "ics". The Socket is meaningful only in ics mode.
+%% If mode==xboard then Socket=="null"
 
 -spec start(list()) -> ok.
 
-start([LibPath, Mode]) ->
+start([LibPath, Mode, Socket, Master]) ->
+	
+	if
+		Socket =/= "null" ->
+			Master ! started;
+		true ->
+			core_logger:start("/tmp/single.log")   %% TODO, where should this file be?
+	end,
+	
+	%% core_logger:logLine("xbi_controller starting", []),
+	
+	persistent_term:put(theSocket, Socket),   %% TODO, really dirty
 	
 	case core_util:initVm(LibPath, list_to_atom(Mode)) of
 		{ok} ->
@@ -50,47 +62,65 @@ start([LibPath, Mode]) ->
 			init:stop()
 	end,
 	
+	%% core_logger:logLine("xbi_controller about to setupCommands", []),
+	
 	cmd_dict:setupCommands(),
+	
+	%% core_logger:logLine("xbi_controller about to setupBoard", []),
 	cli_game:setupBoard(),
+	
+	
 	
 	core_state:sput(loggingAllowed, false),
 	core_state:sput(deferredLog, []),
 	
+	%% core_logger:logLine("xbi_controller about to create game state", []),
+	
 	core_gamestate:create(),
 	
-	spawn_link(xbi_requests, start, [self()]),
+	%% core_logger:logLine("xbi_controller done create game state", []),
+	
+%% 	if
+%% 		Socket =/= "null" ->
+%% 			receive
+%% 				proceed ->
+%% 					ok
+%% 			end;
+%% 		true ->
+%% 			ok
+%% 	end,
+	
+	
+	RequestsPid = spawn_link(xbi_requests, start, [self(), Socket]),
+	if
+		Socket =/= "null" ->
+			ok = gen_tcp:controlling_process(Socket, RequestsPid),
+			core_logger:logLine("socket control handed over yet again", []);
+		true ->
+			ok
+	end,
+	
 	receive
 		{ok, Xboardrequests} ->
 			true
 	end,
+	core_logger:logLine("trace 1", []),
 	
-	try loop(Xboardrequests, xbi_command:setup()) of
-		_ ->
-			log("Controller terminating"),
-			ok
+	try 
+		
+		loop(Xboardrequests, xbi_command:setup()),
+		log("xbi_controller terminating")
+	
 	catch
-		throw:X:Stack ->
-			log(io_lib:format("caught throw: ~w~n", [X])),
-			log(io_lib:format("stack trace: ~p~n", [Stack])),
-			init:stop();
-		
-		exit:Y:Stack ->
-			log(io_lib:format("caught exit: ~w~n", [Y])),
-			log(io_lib:format("stack trace: ~p~n", [Stack])),
-			init:stop();
-		
-		error:Z:Stack ->
-			log(io_lib:format("caught error: ~w~n", [Z])),
-			log(io_lib:format("stack trace: ~p~n", [Stack])),
-			init:stop()
+		_A:#exception{type=Type, message=Message, reason=Reason}:Stack ->
+			log(io_lib:format("caught: ~p, reason: ~p, message: ~p", [Type, Message, Reason])),
+			log(io_lib:format("stack trace: ~p~n", [Stack]));
+		A:B:Stack ->
+			log(io_lib:format("caught: ~p: ~p~n", [A, B])),
+			log(io_lib:format("stack trace: ~p~n", [Stack]))
+	after
+		init:stop()
 	end.
-
-		  
-
-
-
-	
-
 
 
 allowLogging() ->
@@ -114,14 +144,25 @@ log(String) ->
 -spec stdout(string()) -> ok.
 
 stdout(String) ->
-  io:fwrite("~s~n", [String]).
-
+	core_logger:logLine("xbi_controller, send data to xboard: ~p", [String]),
+	try
+		case core_state:sget(mode) of
+			{ok, xboard} ->
+				io:fwrite("~s~n", [String]);
+			{ok, ics} ->
+				Socket = persistent_term:get(theSocket),
+				ok = gen_tcp:send(Socket, String ++ "\n")
+		end
+	catch
+		A:B:C ->
+			core_logger:logLine("caught: ~p, ~p, stack:~n~p", [A, B, C])
+	end.
 
 
 -spec stdout(string(), [term()]) -> ok.
 
 stdout(Format, Data) ->
-  io:fwrite(Format++"~n", Data).
+  stdout(lists:flatten(io_lib:format(Format, Data))).
 
 
 
@@ -133,12 +174,18 @@ stdout(Format, Data) ->
 
 loop(Xboardrequests, Dict) ->
 	
+	core_logger:logLine("trace 2", []),
+
 	Xboardrequests ! {subtract, self()},
+	Line =
+		receive
+			{line, U} ->
+				U
+		end,
+
+    core_logger:logLine("trace 3", []),
 	
-	receive
-		{line, Line} ->
-			true
-	end,
+	core_logger:logLine("subtracted: ~p", [Line]),
 	
 	% log("--> "++Line),
 	case string:tokens(Line, " ") of
@@ -160,8 +207,6 @@ loop(Xboardrequests, Dict) ->
 		_ ->
 			loop(Xboardrequests, Dict)
 	end.
-
-
 
 
 

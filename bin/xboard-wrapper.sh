@@ -1,12 +1,11 @@
 #! /bin/bash
-#
-declare -r Pgm=xboard-wrapper.sh
-#
-#
-#  Starts xboard and sets up a window for debug output
-#  from the engine
 
+# Start xboard with an engine (or proxy) backend
 
+set -o nounset
+set -o errexit
+
+declare -r Pgm=$(basename $0)
 declare -r ScriptDir=`dirname $0`
 cd $ScriptDir/..
 declare Root=`pwd`
@@ -15,9 +14,12 @@ mkdir -p $Root/var/log
 declare -r Log=$Root/var/log/xboard-debug-$$.log
 
 
+declare -r ModeDefault=single
 declare -r EngineDefault=$Root/bin/engine.sh
 declare -r DepthDefault=3
 
+declare -r ServerHostDefault=localhost
+declare -r ServerPortDefault=5000
 
 die() {
   echo "$Pgm: $1" >&2
@@ -26,33 +28,47 @@ die() {
 
 
 help() {
-  echo "Options are:"
-  echo "  -D DEPTH   set the analysis depth (1, 2, 3, 4, 5, 6, ..., defaults to $DepthDefault)"
-  echo "  -e ENGINE  set the chess engine (defaults to $EngineDefault)"
-  echo "  -h         this help"
-  echo ""
-  echo "A non-default chess engine may be given as an absolute path of the"
-  echo "executable, or a path relative to $Root."
+    echo "Options are:"
+    echo "  -m MODE    Engine mode: single|multi, defaults to $ModeDefault"
+    echo "  -e ENGINE  Engine when MODE=single, defaults to $EngineDefault"
+    echo "  -s HOST    Server host when MODE=multi, defaults to $ServerHostDefault"
+    echo "  -p PORT    Server port when MODE=multi, defaults to $ServerPortDefault"
+    echo "  -D DEPTH   set the analysis depth (1, 2, 3, 4, 5, 6, ..., defaults to $DepthDefault)"
+    echo "  -h         this help"
 }
 
-
+declare Mode=$ModeDefault
 declare Engine=$EngineDefault
+declare ServerHost=$ServerHostDefault
+declare ServerPort=$ServerPortDefault
 declare Depth=$DepthDefault
-while getopts ':hD:e:' OPT; do
-  case "$OPT" in
-    h)
-      help
-      exit;;
-    e)
-      Engine="$OPTARG";;
-    D)
-      Depth=$OPTARG;;
-    *)
-      die "unknown option, try -h for help"
-  esac
+while getopts ':m:e:s:p:D:h' OPT; do
+    case "$OPT" in
+	m)
+	    Mode="$OPTARG";;
+	e)
+	    Engine="$OPTARG";;
+	s)
+	    ServerHost="OPTARG";;
+	p)
+	    ServerPort="OPTARG";;
+	D)
+	    Depth=$OPTARG;;
+	h)
+	    help
+	    exit;;
+	*)
+	    die "unknown option, try -h for help"
+    esac
 done
 
 
+case "$Mode" in
+    single|multi)
+	true;;
+    *)
+	die "unknown mode: $Mode"
+esac
 
 if [[ -z "$Engine" ]]; then
   die "engine must be specified, -h for help"
@@ -68,21 +84,30 @@ touch $Log
 xterm -e tail -f -n 1000 $Log &
 
 
-# The -initString option is awkward. The default setting is
-# new\nrandom\n but we reset it to just new\n. The option value
-# must include a terminating newline, hence the quotes appearing
-# on separate lines.
+if [[ $Mode == single ]]; then
 
-#   -ponderNextMove false \
-#   -xthinking \
-
-
-xboard \
-  -fcp "$Engine" \
-  -debugMode true \
-  -engineDebugOutput 1 \
-  -nameOfDebugFile $Log \
-  -initString \
-"new
+    xboard \
+	-fcp "$Engine" \
+	-debugMode true \
+	-engineDebugOutput 1 \
+	-nameOfDebugFile $Log \
+	-initString \
+	"new
 sd $Depth
 "
+
+elif [[ $Mode == multi ]]; then
+
+    export ServerHost=$ServerHost
+    export ServerPort=$ServerPort
+    xboard \
+	-fcp $Root/bin/proxy.sh \
+	-debugMode true \
+	-engineDebugOutput 1 \
+	-nameOfDebugFile $Log \
+        -initString \
+	"new
+sd $Depth
+"
+	
+fi

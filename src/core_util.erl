@@ -94,7 +94,7 @@ inconsistencyException(Message) ->
 -spec inconsistencyException(string(), [term()]) -> no_return().
 
 inconsistencyException(Format, Items) ->
-	inconsistencyException(io_lib:format(Format, Items)).
+	inconsistencyException(lists:flatten(io_lib:format(Format, Items))).
 
 
 

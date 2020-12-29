@@ -21,6 +21,8 @@ SOURCE = $(wildcard src/*.erl)
   dialyze \
   game-cli \
   game-xboard \
+  ics \
+  game-ics \
   ebin \
   hdeps \
   lib \
@@ -41,6 +43,8 @@ help:
 	@echo "dialyze        Check against type errors"
 	@echo "game-cli       Play a game in the console"
 	@echo "game-xboard    Play a game using xboard"
+	@echo "ics            Launch multiplayer server"
+	@echo "game-ics       Play game using the server"
 	@echo ""
 	@echo "eclipse-setup  Adapt Eclipse C project setup to current Erlang environment"
 	@echo ""
@@ -79,6 +83,14 @@ game-cli: ebin lib
 
 game-xboard: ebin lib
 	bin/xboard-wrapper.sh
+
+
+ics: ebin lib
+	bin/ics-wrapper.sh
+
+
+game-ics: ebin lib
+	bin/xboard-wrapper.sh -m multi
 
 
 ebin: hdeps ebin/module.mk

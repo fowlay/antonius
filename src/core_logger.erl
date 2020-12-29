@@ -28,7 +28,8 @@
 %%
 -export([start/1]).
 -export([stop/0]).
--export([log/2]).
+-export([log/2,
+		 logLine/2]).
 
 -export([prelude/2]).
 
@@ -58,10 +59,14 @@ stop() ->
 		ok ->
 			ok
 	end.
-	
+
 
 log(Format, Data) ->
 	?MODULE ! {message, Format, Data}.
+
+logLine(Format, Data) ->
+	?MODULE ! {message, "~p " ++ Format ++ "~n", [self()|Data]}.
+
 
 prelude(Master, Stream) ->
 	Master ! ok,
@@ -74,8 +79,14 @@ prelude(Master, Stream) ->
 loop(Stream) ->
 	receive
 		{message, Format, Data} ->
-			io:fwrite(Stream, Format, Data),
-			loop(Stream);
+			try
+				io:fwrite(Stream, Format, Data),
+				loop(Stream)
+			catch
+				A:B:_C ->
+					io:fwrite(Stream, "ill-formed: ~p~n", [{A, B, Format, Data}]),
+					loop(Stream)
+			end;
 		{stop, Master} ->
 			file:close(Stream),
 			Master ! ok

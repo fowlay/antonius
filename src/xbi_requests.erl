@@ -28,21 +28,28 @@
 %%
 %% Exported Functions
 %%
--export([start/1]).
+-export([start/2]).
 
 %%
 %% API Functions
 %%
 
-start(Master) ->
-	Master ! {ok, self()},
+start(Master, Socket) ->
+	Master ! {ok, self()},   %% TODO, maybe do this a little later
 	
-	spawn_link(xbi_listener, start, [self()]),
+	if
+		Socket =:= "null" ->
+			spawn_link(xbi_listener, start, [self()]);
+		true ->
+			xbi_socket_listener:start(self(), Socket)
+	end,
 	
 	receive
 		{ok} ->
 			ok
 	end,
+	
+	core_logger:logLine("about to enter the requests queue maintainer loop", []),
 	
 	loop([], false, null).
 
@@ -51,6 +58,7 @@ start(Master) ->
 %%
 
 loop(Queue, DeferredSubtract, DeferredCaller) ->
+	core_logger:logLine("in loop", []),
 	receive
 		{add, Line} ->
 			case DeferredSubtract of
@@ -69,6 +77,7 @@ loop(Queue, DeferredSubtract, DeferredCaller) ->
 					
 		
 		{subtract, Caller} ->
+			core_logger:logLine("subtract!", []),
 			case Queue of
 				[Head|Tail] ->
 					Caller ! {line, Head},
@@ -79,6 +88,7 @@ loop(Queue, DeferredSubtract, DeferredCaller) ->
 							loop(Tail, false, null)
 					end;
 				[] ->
+					core_logger:logLine("deferring subtract", []),
 					loop([], true, Caller)
 			end
 	end.
