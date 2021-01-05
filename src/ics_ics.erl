@@ -14,7 +14,7 @@
 		 socket
 		 }).
 
-start(Master, ListenIcs, Depth) ->
+start(_Master, ListenIcs, _Depth) ->
 	State = #state{socket = ListenIcs},
 	loop_accept(State).
 
@@ -45,11 +45,12 @@ loop_accept(State) ->
 				{ok, Socket} ->
 
 					core_logger:logLine("connection accepted: ~p", [Socket]),
-					ok = inet:setopts(Socket, [{active, true}]),
-					%% {ok, Session} = ics_session:start(Socket), .. deprecated
+					ok = inet:setopts(Socket, [{active, false}]),
+					
 					Session = spawn(xbi_controller, start, [["/home/erarafo/git/antonius/lib", "ics", Socket, self()]]),
 					wait_for_started(),
 					ok = gen_tcp:controlling_process(Socket, Session),
+					
 					core_logger:logLine("connection passed to xbi_controller:start/1", []),
 					NewSessions = ordsets:add_element(Session, State#state.sessions),
 					loop_accept(State#state{sessions = NewSessions})

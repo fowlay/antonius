@@ -10,7 +10,7 @@
 start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 	try
 		io:fwrite("args: ~p~n", [Args]),
-		ok = core_logger:start(Log),
+		{ok, _} = core_logger:start(Log),
 		
 		Depth = list_to_integer(DepthS),
 		
@@ -19,7 +19,8 @@ start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 		OptionsIcs = [{nodelay, true}],
 		{ok, ListenIcs, IcsPort} = get_listener_socket(IcsPortTry, IcsPortMax, OptionsIcs),
 		core_logger:logLine("ICS port: ~p", [IcsPort]),
-		ListenIcsPid = spawn(ics_ics, start, [self(), ListenIcs, Depth]),
+		
+		ListenIcsPid = spawn(ics_ics, start, [self(), ListenIcs, Depth]),   %% TODO, self() is not used
 
 		ControlPortTry = list_to_integer(ControlPortDefaultS),
 		ControlPortMax = ControlPortTry + 10,
@@ -34,8 +35,7 @@ start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 				ok
 		end
 	catch X:Y:S ->
-			  core_logger:log("caught: ~p, ~p", [X, Y]),
-			  core_logger:log("stack: ~p", [S])
+			  core_logger:logLine("caught: ~p, ~p, stack: ~p", [X, Y, S])
 	after
 		core_logger:logLine("terminating: ~p", [?MODULE]),
 		ok = core_logger:stop(),

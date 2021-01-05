@@ -1,56 +1,231 @@
-%%% 'antonius' chess engine
-%%% Copyright (C) 2013 Rabbe Fogelholm
-%%%
-%%% This program is free software: you can redistribute it and/or modify
-%%% it under the terms of the GNU General Public License as published by
-%%% the Free Software Foundation, either version 3 of the License, or
-%%% (at your option) any later version.
-%%%
-%%% This program is distributed in the hope that it will be useful,
-%%% but WITHOUT ANY WARRANTY; without even the implied warranty of
-%%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-%%% GNU General Public License for more details.
-%%%
-%%% You should have received a copy of the GNU General Public License
-%%% along with this program.  If not, see <http://www.gnu.org/licenses/>.
+%% @author erarafo
+%% @doc @todo Add description to xbi_listener.
 
-%% Author: erarafo
-%% Created: Aug 19, 2012
-%% Description: TODO: Add description to xboardlistener
+
 -module(xbi_listener).
+-behaviour(gen_server).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
-%%
-%% Include files
-%%
-
-%%
-%% Exported Functions
-%%
+%% ====================================================================
+%% API functions
+%% ====================================================================
 -export([start/1]).
 
-%%
-%% API Functions
-%%
 
-start(Master) ->
-	Master ! {ok},
-	
-	[Eol] = io_lib:nl(),
-	loop(Master, Eol).
-	
-	
+start(Socket) ->
+	%% the socket is not active
+	{ok, Pid} = gen_server:start(?MODULE, [Socket], []),
+	if
+		Socket =/= "null" ->
+		   gen_tcp:controlling_process(Socket, Pid);
+	   true ->
+		   core_logger:logLine("no socket ..", []),
+		   ok
+	end,
+	{ok, Pid}.
 
-%%
-%% Local Functions
-%%
 
-loop(Master, Eol) ->
-	TerminatedLine = io:get_line(""),
-	Line = string:strip(TerminatedLine, right, Eol),
-	Master ! {add, Line},
-	case Line of
-		"quit" ->
-			ok;
-		_ ->
-			loop(Master, Eol)
+
+%% ====================================================================
+%% Behavioural functions
+%% ====================================================================
+-record(state,
+		{commands = [],
+		 databuffer = "",
+		 deferredrequest = false,
+		 controller_pid,
+		 socket
+		 }).
+
+%% init/1
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:init-1">gen_server:init/1</a>
+-spec init(Args :: term()) -> Result when
+	Result :: {ok, State}
+			| {ok, State, Timeout}
+			| {ok, State, hibernate}
+			| {stop, Reason :: term()}
+			| ignore,
+	State :: term(),
+	Timeout :: non_neg_integer() | infinity.
+%% ====================================================================
+init([Socket]) when Socket =:= "null" ->
+	core_logger:logLine("no socket ...", []),
+	xbi_stdin_listener:start(self()),
+    {ok, #state{socket = Socket}};
+
+init([Socket]) ->
+	core_logger:logLine("[L] have socket", []),
+	inet:setopts(Socket, [{active, true}]),
+    {ok, #state{socket = Socket}}.
+
+
+%% handle_call/3
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:handle_call-3">gen_server:handle_call/3</a>
+-spec handle_call(Request :: term(), From :: {pid(), Tag :: term()}, State :: term()) -> Result when
+	Result :: {reply, Reply, NewState}
+			| {reply, Reply, NewState, Timeout}
+			| {reply, Reply, NewState, hibernate}
+			| {noreply, NewState}
+			| {noreply, NewState, Timeout}
+			| {noreply, NewState, hibernate}
+			| {stop, Reason, Reply, NewState}
+			| {stop, Reason, NewState},
+	Reply :: term(),
+	NewState :: term(),
+	Timeout :: non_neg_integer() | infinity,
+	Reason :: term().
+%% ====================================================================
+handle_call(_Request, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State}.
+
+
+%% handle_cast/2
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:handle_cast-2">gen_server:handle_cast/2</a>
+-spec handle_cast(Request :: term(), State :: term()) -> Result when
+	Result :: {noreply, NewState}
+			| {noreply, NewState, Timeout}
+			| {noreply, NewState, hibernate}
+			| {stop, Reason :: term(), NewState},
+	NewState :: term(),
+	Timeout :: non_neg_integer() | infinity.
+%% ====================================================================
+
+handle_cast({input, Line}, #state{controller_pid = Cpid,
+							commands = Commands,
+							deferredrequest = DefReq} = State) ->
+	
+	core_logger:logLine("[L] got a stdin line: ~p", [Line]),
+	
+	NewCommands = Commands ++ [Line],
+	if
+		DefReq ->
+			[First|Rest] = NewCommands,
+			core_logger:logLine("deliver deferred request: ~p", [First]),
+			gen_server:cast(Cpid, {request, First}),
+			{noreply, State#state{deferredrequest = false, commands = Rest}};
+		true ->
+			core_logger:logLine("enqueue request", []),
+			{noreply, State#state{commands = NewCommands}}
+	end;
+
+handle_cast({get_request, ControllerPid},
+			#state{commands = [First|More], socket = Socket} = State) ->
+	core_logger:logLine("[L] deliver request promptly", []),
+	gen_server:cast(ControllerPid, {request, First}),
+	{noreply, State#state{commands = More}};
+
+handle_cast({get_request, ControllerPid}, #state{commands = [], socket = Socket} = State) ->
+	core_logger:logLine("[L] empty queue", []),
+	{noreply, State#state{deferredrequest = true, controller_pid = ControllerPid}};
+
+handle_cast(Msg, State) ->
+	core_logger:logLine("[L] handle_cast, unexpected: ~p", [Msg]),
+    {noreply, State}.
+
+
+%% handle_info/2
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:handle_info-2">gen_server:handle_info/2</a>
+-spec handle_info(Info :: timeout | term(), State :: term()) -> Result when
+	Result :: {noreply, NewState}
+			| {noreply, NewState, Timeout}
+			| {noreply, NewState, hibernate}
+			| {stop, Reason :: term(), NewState},
+	NewState :: term(),
+	Timeout :: non_neg_integer() | infinity.
+%% ====================================================================
+
+
+
+
+handle_info({tcp, _Socket, Data},
+			#state{controller_pid = ControllerPid,
+				   commands = Commands,
+				   databuffer = DataBuffer,
+				   deferredrequest = R} = State) ->
+	core_logger:logLine("socket received data: ~p", [Data]),
+	NewDataBuffer = DataBuffer ++ Data,
+	
+	{NewNewDataBuffer, NewCommands} = add_to_buffer(NewDataBuffer, Commands),
+	
+	if
+		R andalso NewCommands =/= [] ->
+			%% deliver deferred response now
+			[First|MoreCommands] = NewCommands,
+			gen_server:cast(ControllerPid, {request, First}),
+			{noreply, State#state{databuffer = NewNewDataBuffer,
+								  commands = MoreCommands,
+								  deferredrequest = false}};
+		true ->
+			{noreply, State#state{databuffer = NewNewDataBuffer, commands = NewCommands}}
+	end;
+
+handle_info(Info, State) ->
+	core_logger:logLine("[L] handle_info, unexpected: ~p", [Info]),
+    {noreply, State}.
+
+
+%% terminate/2
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:terminate-2">gen_server:terminate/2</a>
+-spec terminate(Reason, State :: term()) -> Any :: term() when
+	Reason :: normal
+			| shutdown
+			| {shutdown, term()}
+			| term().
+%% ====================================================================
+terminate(_Reason, _State) ->
+    ok.
+
+
+%% code_change/3
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:code_change-3">gen_server:code_change/3</a>
+-spec code_change(OldVsn, State :: term(), Extra :: term()) -> Result when
+	Result :: {ok, NewState :: term()} | {error, Reason :: term()},
+	OldVsn :: Vsn | {down, Vsn},
+	Vsn :: term().
+%% ====================================================================
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+%% @doc Splits off the smallest leading newline-terminated line. The returned
+%% value is {null, _} if no newline is seen. If splitting succeeds,
+%% the split-off string and the remainder is returned. The split-off
+%% string is trimmed.
+
+-spec leader_line(string(), string()) -> {string(), string()}|null.
+
+
+leader_line([], _Acc) ->
+	null;
+
+leader_line([$\n|More], Acc) ->
+	{lists:reverse(Acc), More};
+
+leader_line([A|More], Acc) ->
+	leader_line(More, [A|Acc]).
+
+
+-spec add_to_buffer(string(), [string()]) -> {string(), [string()]}.
+
+add_to_buffer(Data, Buffer) ->
+	case leader_line(Data, "") of
+		null ->
+			{Data, Buffer};
+		{Command, More} ->
+			add_to_buffer(More, Buffer ++ [Command])
 	end.
+
+
+
+
