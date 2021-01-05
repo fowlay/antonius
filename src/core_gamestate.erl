@@ -393,7 +393,7 @@ game_state_test() ->
 	NodeA = core_node:create("*Ke1", "*Ke8", white),
 	NodeB = core_node:create("Ke2", "*Ke8", black),
 	
-	core_state:start(), core_state:init([]),
+	core_state:start(),
 	
 	create(),
 	?assertEqual(0, getSize()),

@@ -129,7 +129,6 @@ file(Letter) ->
 
 board_test() ->
 	core_state:start(),
-	core_state:init([]),
 	
 	#board{dict=D, tuple=T} = instance(),
 	A1D = dict:fetch("a1", D),

@@ -1,36 +1,15 @@
-%%% 'antonius' chess engine
-%%% Copyright (C) 2013 Rabbe Fogelholm
-%%%
-%%% This program is free software: you can redistribute it and/or modify
-%%% it under the terms of the GNU General Public License as published by
-%%% the Free Software Foundation, either version 3 of the License, or
-%%% (at your option) any later version.
-%%%
-%%% This program is distributed in the hope that it will be useful,
-%%% but WITHOUT ANY WARRANTY; without even the implied warranty of
-%%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-%%% GNU General Public License for more details.
-%%%
-%%% You should have received a copy of the GNU General Public License
-%%% along with this program.  If not, see <http://www.gnu.org/licenses/>.
+%% @author erarafo
+%% @doc @todo Add description to core_state.
 
-%% Author: erarafo
-%% Created: Jan 20, 2012
-%% Description: TODO: Add description to new_file
+
 -module(core_state).
+-behaviour(gen_server).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
-%%
-%% Include files
-%%
-
-
--define(PROCESS, ?MODULE).
-
-%%
-%% Exported Functions
-%%
+%% ====================================================================
+%% API functions
+%% ====================================================================
 -export([start/0]).
--export([init/1]).
 -export([stop/0]).
 -export([sget/1]).
 -export([sput/2]).
@@ -40,161 +19,172 @@
 -export([dump/0]).
 -export([clear/0]).
 
--export([serverProcess/1]).
-
-%%
-%% API Functions
-%%
-
 start() ->
-	Pid = spawn(?MODULE, serverProcess, [createMap()]),
-	register(?PROCESS, Pid).
-
-init(_) ->
-	ok.
-
-
-
-sget(Key) ->
-	?PROCESS ! {get, self(), Key},
-	receive
-		T ->
-			T
-	end.
-
-
--spec sput(atom(), any()) ->  ok.
-
-sput(Key, Value) ->
-	?PROCESS ! {put, self(), Key, Value},
-	receive
-		{ok} ->
-			ok
-	end.
-
-
--spec remove(atom()) -> ok.
-
-remove(Key) ->
-	?PROCESS ! {remove, self(), Key},
-	receive
-		{ok} ->
-			ok
-	end.
-
+	gen_server:start({local, ?MODULE}, ?MODULE, [], []),
+	true.
 
 stop() ->
-	?PROCESS ! {stop, self()},
-	receive
-		{ok} ->
-			ok
-	end.
+	gen_server:cast(?MODULE, {stop}).
 
+sget(Key) ->
+	gen_server:call(?MODULE, {sget, Key}).
+
+sput(Key, Value) ->
+	gen_server:call(?MODULE, {sput, Key, Value}).
+
+remove(Key) ->
+	gen_server:call(?MODULE, {remove, Key}).
 
 reset(Counter) ->
-	?MODULE:sput(Counter, 0).
-
+	sput(Counter, 0).
 
 incrementAndGet(Counter, Increment) ->
-	?PROCESS ! {incrementAndGet, self(), Counter, Increment},
-	receive
-		null ->
-			null;
-		T ->
-			T
-	end.
-
+	gen_server:call(?MODULE, {incrementAndGet, Counter, Increment}).
 
 dump() ->
-	?PROCESS ! {dump, self()},
-	receive
-		{ok, State} ->
-			State
-	end.
-
+	gen_server:call(?MODULE, {dump}).
 
 clear() ->
-	?PROCESS ! {clear, self()},
-	receive
-		{ok} ->
-			ok
-	end.
+	gen_server:call(?MODULE, {clear}).
 
 
 
-%%
-%% Local Functions
-%%
 
-createMap() ->
-	[].
+%% ====================================================================
+%% Behavioural functions
+%% ====================================================================
+-record(state, {dict}).
 
-
-lookup(_, []) ->
-	null;
-
-lookup(Key, [[Key|Value]|_]) ->
-	Value;
-
-lookup(Key, [_|Tail]) ->
-	lookup(Key, Tail).
-
-
-update(Key, Value, []) ->
-	[[Key|Value]];
-
-update(Key, Value, [[Key|_]|Tail]) ->
-	[[Key|Value]|Tail];
-
-update(Key, Value, [Head|Tail]) ->
-	[Head|update(Key, Value, Tail)].
+%% init/1
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:init-1">gen_server:init/1</a>
+-spec init(Args :: term()) -> Result when
+	Result :: {ok, State}
+			| {ok, State, Timeout}
+			| {ok, State, hibernate}
+			| {stop, Reason :: term()}
+			| ignore,
+	State :: term(),
+	Timeout :: non_neg_integer() | infinity.
+%% ====================================================================
+init([]) ->
+    {ok, #state{dict = dict:new()}}.
 
 
-remove(_, []) ->
-	[];
+%% handle_call/3
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:handle_call-3">gen_server:handle_call/3</a>
+-spec handle_call(Request :: term(), From :: {pid(), Tag :: term()}, State :: term()) -> Result when
+	Result :: {reply, Reply, NewState}
+			| {reply, Reply, NewState, Timeout}
+			| {reply, Reply, NewState, hibernate}
+			| {noreply, NewState}
+			| {noreply, NewState, Timeout}
+			| {noreply, NewState, hibernate}
+			| {stop, Reason, Reply, NewState}
+			| {stop, Reason, NewState},
+	Reply :: term(),
+	NewState :: term(),
+	Timeout :: non_neg_integer() | infinity,
+	Reason :: term().
+%% ====================================================================
 
-remove(Key, [[Key|_]|Tail]) ->
-	Tail;
+handle_call({sget, Key}, _From, #state{dict=Dict} = State) ->
+	Result =
+		case dict:find(Key, Dict) of
+			{ok, Value} ->
+				{ok, Value};
+			error ->
+				null
+		end,
+    {reply, Result, State};
 
-remove(Key, [[_|_]|Tail]) ->
-	remove(Key, Tail).
+handle_call({sput, Key, Value}, _From, #state{dict=Dict} = State) ->
+	NewDict = dict:store(Key, Value, Dict),
+	{reply, ok, State#state{dict=NewDict}};
+
+handle_call({remove, Key}, _From, #state{dict=Dict} = State) ->
+	NewDict = dict:erase(Key, Dict),
+	{reply, ok, State#state{dict=NewDict}};
+
+handle_call({incrementAndGet, Counter, Increment}, _From, #state{dict=Dict} = State) ->
+	case dict:find(Counter, Dict) of
+		{ok, Value} ->
+			NewValue = Value + Increment,
+			NewDict = dict:store(Counter, NewValue, Dict),
+			{reply, {ok, NewValue}, State#state{dict=NewDict}};
+		error ->
+			{reply, null, State}
+	end;
+
+handle_call({dump}, _From, State) ->
+	{reply, State, State};
+
+handle_call({clear}, _From, State) ->
+	{reply, ok, State#state{dict = dict:new()}};
 
 
-serverProcess(State) ->
-	receive
-		{get, Caller, Key} ->
-			case lookup(Key, State) of
-				null ->
-					Caller ! null;
-				Value ->
-					Caller ! {ok, Value}
-			end,
-			serverProcess(State);
-		{put, Caller, Key, Value} ->
-			NewState = update(Key, Value, State),
-			Caller ! {ok},
-			serverProcess(NewState);
-		{remove, Caller, Key} ->
-			NewState = remove(Key, State),
-			Caller ! {ok},
-			serverProcess(NewState);
-		{incrementAndGet, Caller, Counter, Increment} ->
-			case lookup(Counter, State) of
-				null ->
-					Caller ! null,
-					serverProcess(State);
-				Value ->
-					NewValue = Value + Increment,
-					NewState = update(Counter, NewValue, State),
-					Caller ! {ok, NewValue},
-					serverProcess(NewState)
-			end;
-		{dump, Caller} ->
-			Caller ! {ok, State},
-			serverProcess(State);
-		{clear, Caller} ->
-			Caller ! {ok},
-			serverProcess(createMap());
-		{stop, Caller} ->
-			Caller ! {ok}
-	end.
+handle_call(_Request, _From, State) ->
+    {reply, ok, State}.
+
+
+%% handle_cast/2
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:handle_cast-2">gen_server:handle_cast/2</a>
+-spec handle_cast(Request :: term(), State :: term()) -> Result when
+	Result :: {noreply, NewState}
+			| {noreply, NewState, Timeout}
+			| {noreply, NewState, hibernate}
+			| {stop, Reason :: term(), NewState},
+	NewState :: term(),
+	Timeout :: non_neg_integer() | infinity.
+%% ====================================================================
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
+
+%% handle_info/2
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:handle_info-2">gen_server:handle_info/2</a>
+-spec handle_info(Info :: timeout | term(), State :: term()) -> Result when
+	Result :: {noreply, NewState}
+			| {noreply, NewState, Timeout}
+			| {noreply, NewState, hibernate}
+			| {stop, Reason :: term(), NewState},
+	NewState :: term(),
+	Timeout :: non_neg_integer() | infinity.
+%% ====================================================================
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+
+%% terminate/2
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:terminate-2">gen_server:terminate/2</a>
+-spec terminate(Reason, State :: term()) -> Any :: term() when
+	Reason :: normal
+			| shutdown
+			| {shutdown, term()}
+			| term().
+%% ====================================================================
+terminate(_Reason, _State) ->
+    ok.
+
+
+%% code_change/3
+%% ====================================================================
+%% @doc <a href="http://www.erlang.org/doc/man/gen_server.html#Module:code_change-3">gen_server:code_change/3</a>
+-spec code_change(OldVsn, State :: term(), Extra :: term()) -> Result when
+	Result :: {ok, NewState :: term()} | {error, Reason :: term()},
+	OldVsn :: Vsn | {down, Vsn},
+	Vsn :: term().
+%% ====================================================================
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
+

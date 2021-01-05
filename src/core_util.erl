@@ -58,7 +58,6 @@ initVm(LibDir, Mode) ->
 	LoadNative = core_nif:init(LibDir),
 	
 	core_state:start(),
-	core_state:init([]),
 	
 	core_state:sput(mode, Mode),
 	
