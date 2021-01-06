@@ -49,7 +49,7 @@
 %%
 -export([create/2]).
 -export([createSingle/2]).
--export([bestMoves/2]).
+-export([bestMoves/3]).
 -export([add/3]).
 -export([isEmpty/1]).
 -export([getSummary/1]).
@@ -94,9 +94,9 @@ add(Node, Value, #abResult{nodeSets=S, summary=Summary}) ->
 
 	
 
-bestMoves(#abResult{summary=Summary, nodeSets=NodeSets}, #node{toMove=ToMove}=Node) ->
+bestMoves(Sid, #abResult{summary=Summary, nodeSets=NodeSets}, #node{toMove=ToMove}=Node) ->
 	Iterator = iterator(NodeSets, ToMove),
-	R = lists:reverse(bestMovesHelper(1, Iterator, Node, [])),
+	R = lists:reverse(bestMovesHelper(Sid, 1, Iterator, Node, [])),
 	case Summary of
 		null ->
 			R;
@@ -105,7 +105,7 @@ bestMoves(#abResult{summary=Summary, nodeSets=NodeSets}, #node{toMove=ToMove}=No
 	end.
 
 
-bestMovesHelper(N, Iterator, _, R) when N > ?DISPLAY_LIMIT ->
+bestMovesHelper(_Sid, N, Iterator, _, R) when N > ?DISPLAY_LIMIT ->
 	case hasNext(Iterator) of
 		true ->
 			done(Iterator),
@@ -116,13 +116,13 @@ bestMovesHelper(N, Iterator, _, R) when N > ?DISPLAY_LIMIT ->
 	end;
 			
 
-bestMovesHelper(N, Iterator, Node, R) ->
+bestMovesHelper(Sid, N, Iterator, Node, R) ->
 	case hasNext(Iterator) of
 		true ->
 			{Score, ToNode} = next(Iterator),
 			Move = core_move:create(Node, ToNode),
-			Descr = core_move:describe(Move, true),
-			bestMovesHelper(N+1, Iterator, Node, [io_lib:format("~w (~w) ~s", [N, Score, Descr])|R]);
+			Descr = core_move:describe(Sid, Move, true),
+			bestMovesHelper(Sid, N+1, Iterator, Node, [io_lib:format("~w (~w) ~s", [N, Score, Descr])|R]);
 		_ ->
 			done(Iterator),
 			R

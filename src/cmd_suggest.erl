@@ -49,33 +49,33 @@ init() ->
 				"    suggest [DEPTH]",
 				"",
 				"Suggest some moves. The recursion depth may",
-				"be specified (it defaults to "++integer_to_list(param_parameter:getRecursionDepth())++"). A suggested",
+				"be specified (it defaults to "++"*** FIXME ***"++"). A suggested",
 				"move may be chosen with a subsequent 'do' command."
 				]).
 
 
 %% @doc Suggest a move (for white to make).
 
--spec suggest([string()]) -> #cmdresult{}.
+-spec suggest([sid()]) -> #cmdresult{}.
 
-suggest([]) ->
-	suggest([integer_to_list(param_parameter:getRecursionDepth())]);
+suggest([Sid]) ->
+	suggest([Sid, integer_to_list(param_parameter:getRecursionDepth(Sid))]);
 
-suggest([X]) ->
+suggest([Sid, X]) ->
 	RecursionDepth = list_to_integer(X),
-	CurrentNode = core_gamestate:getCurrentNode(),
+	CurrentNode = core_gamestate:getCurrentNode(Sid),
 	
 	Key = core_node:key(CurrentNode),
-	ABResult = core_gamestate:getAbResult(Key, RecursionDepth),
+	ABResult = core_gamestate:getAbResult(Sid, Key, RecursionDepth),
 	
 	if
 		ABResult =/= null ->
-			Text = core_abresult:bestMoves(ABResult, CurrentNode),
+			Text = core_abresult:bestMoves(Sid, ABResult, CurrentNode),
 			#cmdresult{text=Text};
 		true ->
-			NewABResult = core_node:alphaBetaRoot(CurrentNode, RecursionDepth),
-			core_gamestate:putAbResult(Key, RecursionDepth, NewABResult),
-			Text = core_abresult:bestMoves(NewABResult, CurrentNode),
+			NewABResult = core_node:alphaBetaRoot(Sid, CurrentNode, RecursionDepth),
+			core_gamestate:putAbResult(Sid, Key, RecursionDepth, NewABResult),
+			Text = core_abresult:bestMoves(Sid, NewABResult, CurrentNode),
 			#cmdresult{text=Text}
 	end.
 

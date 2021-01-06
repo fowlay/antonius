@@ -27,7 +27,7 @@
 %% Exported Functions
 %%
 -export([setup/0]).
--export([execute/3]).
+-export([execute/4]).
 
 %%
 %% API Functions
@@ -46,7 +46,7 @@ setup() ->
 	   ]		
 	).
 
-execute(Command, Arguments, Dict) ->
+execute(Sid, Command, Arguments, Dict) ->
 	{Fun, Nargs} = dict:fetch(Command, Dict),
 	
 	case length(Arguments) of
@@ -55,7 +55,7 @@ execute(Command, Arguments, Dict) ->
 		OtherSize ->
 			core_util:inconsistencyException("command: ~s, wrong number of arguments, expected: ~p, actual: ~p", [Command, Nargs, OtherSize])
 	end,
-	apply(Fun, [Arguments]).
+	apply(Fun, [[Sid|Arguments]]).
 	
 
 %%

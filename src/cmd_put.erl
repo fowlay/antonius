@@ -77,28 +77,28 @@ init() ->
 %%
 %% TODO: 42, replace by macro
 
--spec place([string()]) -> #cmdresult{}.
+-spec place([sid()|string()]) -> #cmdresult{}.
 
-place([SColour, [42, TypeLetter], SSquare]) ->
-	place([SColour, [TypeLetter], SSquare, "w", true, false]);
+place([Sid, SColour, [42, TypeLetter], SSquare]) ->
+	place([Sid, SColour, [TypeLetter], SSquare, "w", true, false]);
 
-place([SColour, SType, SSquare]) ->
-	place([SColour, SType, SSquare, "w", false, false]);
+place([Sid, SColour, SType, SSquare]) ->
+	place([Sid, SColour, SType, SSquare, "w", false, false]);
 
-place([SColour, [42, TypeLetter], SSquare, SToMove]) ->
-	place([SColour, [TypeLetter], SSquare, SToMove, true, true]);
+place([Sid, SColour, [42, TypeLetter], SSquare, SToMove]) ->
+	place([Sid, SColour, [TypeLetter], SSquare, SToMove, true, true]);
 
-place([SColour, SType, SSquare, SToMove]) ->
-	place([SColour, SType, SSquare, SToMove, false, true]);
+place([Sid, SColour, SType, SSquare, SToMove]) ->
+	place([Sid, SColour, SType, SSquare, SToMove, false, true]);
 
 
-place([SColour, SType, SSquare, SToMove, Pristine, IsToMoveSpecified]) ->
+place([Sid, SColour, SType, SSquare, SToMove, Pristine, IsToMoveSpecified]) ->
 	Colour = core_colour:colour(SColour),
 	#pieceType{name=Type} = core_piecetype:pieceType(SType, Colour),
 	#board{dict=Dict} = get(board),
 	Square = dict:fetch(SSquare, Dict),
 	ToMove = core_colour:colour(SToMove),
-	#node{white=White, black=Black} = core_gamestate:getCurrentNode(),
+	#node{white=White, black=Black} = core_gamestate:getCurrentNode(Sid),
 	
 	NewMaterial =
 		case Colour of
@@ -116,11 +116,11 @@ place([SColour, SType, SSquare, SToMove, Pristine, IsToMoveSpecified]) ->
 				core_node:create(White, NewMaterial, ToMove, null, 0, 0)
 		end,
 	
-	core_gamestate:removeCurrentNode(),
-	core_gamestate:addNode(NewNode),
+	core_gamestate:removeCurrentNode(Sid),
+	core_gamestate:addNode(Sid, NewNode),
 	if
 		IsToMoveSpecified ->
-			core_gamestate:setCurrentState(open);
+			core_gamestate:setCurrentState(Sid, open);
 		true ->
 			ok
 	end,

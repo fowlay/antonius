@@ -37,7 +37,7 @@
 -export([toString/1]).
 -export([toAlgebraic/1]).
 -export([describeBrief/1]).
--export([describe/2]).
+-export([describe/3]).
 
 %%
 %% API Functions
@@ -144,14 +144,14 @@ toAlgebraic(#move{from=From,
 %% Describe this move; consider it as a possible future move
 %% (not yet manifest in the game state) or a made move.
 			
-describe(#move{fromNode=FromNode, toNode=ToNode}=M, Future) ->
+describe(Sid, #move{fromNode=FromNode, toNode=ToNode}=M, Future) ->
 	#node{toMove=FromNodeToMove} = FromNode,
 	Player = FromNodeToMove,
 	if
 		Future ->
-			Buffer = atom_to_list(Player)++" may move: "++toString(M)++repetitionStatus(M, Future);
+			Buffer = atom_to_list(Player)++" may move: "++toString(M)++repetitionStatus(Sid, M, Future);
 		true ->
-			Buffer = atom_to_list(Player)++" moved: "++toString(M)++repetitionStatus(M, Future)
+			Buffer = atom_to_list(Player)++" moved: "++toString(M)++repetitionStatus(Sid, M, Future)
 	end,
 	
 	OtherPlayer = core_colour:otherColour(FromNodeToMove),
@@ -181,12 +181,12 @@ describe(#move{fromNode=FromNode, toNode=ToNode}=M, Future) ->
 	Buffer3.
 
 
-repetitionStatus(#move{toNode=ToNode}, Future) ->
+repetitionStatus(Sid, #move{toNode=ToNode}, Future) ->
 	
 
 	Key = core_node:key(ToNode),
 	
-	Count = core_gamestate:getRepeatCount(Key),
+	Count = core_gamestate:getRepeatCount(Sid, Key),
 	
 	if
 		Future, Count > 0 ->

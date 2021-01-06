@@ -17,7 +17,7 @@
 -export([reset/1]).
 -export([incrementAndGet/2]).
 -export([dump/0]).
--export([clear/0]).
+-export([clear/1]).
 
 start() ->
 	gen_server:start({local, ?MODULE}, ?MODULE, [], []),
@@ -44,8 +44,8 @@ incrementAndGet(Counter, Increment) ->
 dump() ->
 	gen_server:call(?MODULE, {dump}).
 
-clear() ->
-	gen_server:call(?MODULE, {clear}).
+clear(Sid) ->
+	gen_server:call(?MODULE, {clear, Sid}).
 
 
 
@@ -120,8 +120,18 @@ handle_call({incrementAndGet, Counter, Increment}, _From, #state{dict=Dict} = St
 handle_call({dump}, _From, State) ->
 	{reply, State, State};
 
-handle_call({clear}, _From, State) ->
-	{reply, ok, State#state{dict = dict:new()}};
+handle_call({clear, Sid}, _From, #state{dict=Dict} = State) ->
+	NewDict =
+		dict:fold(
+		  fun({X, _Y}, _Value, Acc) when X =:= Sid ->
+				  Acc;
+			 (Key, Value, Acc) ->
+				  dict:store(Key, Value, Acc)
+		  end,
+		  dict:new(),
+		  Dict),
+	
+	{reply, ok, State#state{dict = NewDict}};
 
 
 handle_call(_Request, _From, State) ->

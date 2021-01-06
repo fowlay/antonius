@@ -33,21 +33,21 @@
 %%
 %% Exported Functions
 %%
--export([instance/0]).
+-export([instance/1]).
+-export([getSquare/3]).
 -export([getSquare/2]).
--export([getSquare/1]).
 
 %%
 %% API Functions
 %%
 
--spec instance() -> #board{}.
+-spec instance(sid()) -> #board{}.
 
-instance() ->
-	case core_state:sget(board) of
+instance(Sid) ->
+	case core_state:sget({Sid, board}) of
 		null ->
-			core_state:sput(board, create()),
-			instance();
+			core_state:sput({Sid, board}, create()),
+			instance(Sid);
 		{ok, Board} ->
 			Board
 	end.
@@ -55,9 +55,9 @@ instance() ->
 
 %% @doc ... no check against boundary error
 
--spec getSquare(integer(), integer()) -> #square{}.
+-spec getSquare(sid(), integer(), integer()) -> #square{}.
 
-getSquare(File, Rank) ->
+getSquare(_Sid, File, Rank) ->
 	#board{tuple=Tuple} = get(board),
 	% array:get(square:linear(File, Rank), Array).
     element(File+(Rank-1)*8, Tuple).
@@ -65,13 +65,13 @@ getSquare(File, Rank) ->
 
 %% @doc Lookup by board name.
 
--spec getSquare(string()) -> #square{}.
+-spec getSquare(sid(), string()) -> #square{}.
 
-getSquare(Name) ->
+getSquare(Sid, Name) ->
 	Letter = string:substr(Name, 1, 1),
 	File = file(Letter),
 	Rank = list_to_integer(string:substr(Name, 2, 1)),
-	getSquare(File, Rank).
+	getSquare(Sid, File, Rank).
 
 %%
 %% Local Functions
@@ -128,9 +128,12 @@ file(Letter) ->
 
 
 board_test() ->
+	
+	Sid = test,
+	
 	core_state:start(),
 	
-	#board{dict=D, tuple=T} = instance(),
+	#board{dict=D, tuple=T} = instance(Sid),
 	A1D = dict:fetch("a1", D),
 	A2D = dict:fetch("a2", D),
 	A1A = element(1, T),

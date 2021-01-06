@@ -12,6 +12,16 @@ start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 		io:fwrite("args: ~p~n", [Args]),
 		{ok, _} = core_logger:start(Log),
 		
+		%% TODO, the string below is duplicated in ics_ics
+		case core_util:initVm("/home/erarafo/git/antonius/lib", ics) of
+			{ok} ->
+				ok;
+			_ ->
+				init:stop()
+		end,
+		
+		cmd_dict:setupCommands(),
+		
 		Depth = list_to_integer(DepthS),
 		
 		IcsPortTry = list_to_integer(IcsPortDefaultS),

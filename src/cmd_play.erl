@@ -30,7 +30,7 @@
 
 -export([play/1]).
 
--export([setSuggestion/2]).
+-export([setSuggestion/3]).
 
 %%
 %% Include files
@@ -61,8 +61,10 @@ init() ->
 				"    play [DEPTH]",
 				"",
 				"Try to find a move and make the move. The",
-				"recursion depth may be specified (it defaults",
-				"to "++integer_to_list(param_parameter:getRecursionDepth())++")."
+				"recursion depth may be specified" ++
+%% 				" (it defaults",
+%% 				"to "++integer_to_list(param_parameter:getRecursionDepth())++
+				")."
 				]).
 			
 
@@ -74,8 +76,8 @@ init() ->
 	
 
 
-isRepetition() ->
-	case core_gamestate:getRepetitions() of
+isRepetition(Sid) ->
+	case core_gamestate:getRepetitions(Sid) of
 		[] ->
 			false;
 		_ ->
@@ -84,110 +86,110 @@ isRepetition() ->
 
 
 
--spec play([string()]) -> #cmdresult{}.
+-spec play([sid()]) -> #cmdresult{}.
 
-play([]) ->
-	playAtDepth(param_parameter:getRecursionDepth());
+play([Sid]) ->
+	playAtDepth(Sid, param_parameter:getRecursionDepth(Sid));
 
-play([X]) ->
+play([Sid, X]) ->
 	RecursionDepth = list_to_integer(X),
-	playAtDepth(RecursionDepth).
+	playAtDepth(Sid, RecursionDepth).
 
 
--spec playAtDepth(smallint()) -> #cmdresult{}.
+-spec playAtDepth(sid(), smallint()) -> #cmdresult{}.
 	
-playAtDepth(RecursionDepth) ->
+playAtDepth(Sid, RecursionDepth) ->
 	
-	core_gamestate:checkGameOpen(),
+	core_gamestate:checkGameOpen(Sid),
 	
-	#node{toMove=ToMove}=CurrentNode = core_gamestate:getCurrentNode(),
-	#abResult{nodeSets=NS}=Result = core_node:alphaBetaRoot(CurrentNode, RecursionDepth),
+	#node{toMove=ToMove}=CurrentNode = core_gamestate:getCurrentNode(Sid),
+	#abResult{nodeSets=NS}=Result = core_node:alphaBetaRoot(Sid, CurrentNode, RecursionDepth),
 	
-	Text = core_abresult:bestMoves(Result, CurrentNode),
+	Text = core_abresult:bestMoves(Sid, Result, CurrentNode),
 	Iter = core_abresult:iterator(NS, ToMove),
 	case core_abresult:hasNext(Iter) of
 		true ->
-			NewNode = getNonStalemateNode(Iter, CurrentNode),
-			case isRepetition() of
+			NewNode = getNonStalemateNode(Sid, Iter, CurrentNode),
+			case isRepetition(Sid) of
 				true ->
 					case drawDesired(CurrentNode, NewNode) of
 						true ->
 							core_abresult:done(Iter),
-							core_gamestate:setCurrentState(draw),
+							core_gamestate:setCurrentState(Sid, draw),
 							#cmdresult{canClaimDraw=true, message="claiming draw by repetition", text=Text};
 						false ->
-							case willCauseRepetition(Result, CurrentNode) of
+							case willCauseRepetition(Sid, Result, CurrentNode) of
 								null ->
 									core_abresult:done(Iter),
-									addNode(NewNode, Text);
+									addNode(Sid, NewNode, Text);
 								RepNode ->
 									if
 										NewNode =/= RepNode ->
 											core_abresult:done(Iter),
-											addNode(NewNode, Text);
+											addNode(Sid, NewNode, Text);
 										true ->
 											case core_abresult:hasNext(Iter) of
 												true ->
 													{_AltScore, AltNode} = core_abresult:next(Iter),
 													core_abresult:done(Iter),
-													addNode(AltNode, Text);
+													addNode(Sid, AltNode, Text);
 												false ->
 													core_abresult:done(Iter),
-													addNode(NewNode, Text)
+													addNode(Sid, NewNode, Text)
 											end
 									end
 							end
 					end;
 				false ->
-					case canCauseRepetition(Result, CurrentNode) of
+					case canCauseRepetition(Sid, Result, CurrentNode) of
 						true ->
-							RepNode = willCauseRepetition(Result, CurrentNode),
+							RepNode = willCauseRepetition(Sid, Result, CurrentNode),
 							case drawDesired(CurrentNode, NewNode) of
 								true ->
 									core_abresult:done(Iter),
-									core_gamestate:addNode(RepNode, draw),
+									core_gamestate:addNode(Sid, RepNode, draw),
 									#cmdresult{gsMoveMade=true, canClaimDraw=true, message="claiming draw by repetition after move was made", text=Text};
 								false ->
 									if
 										NewNode =/= RepNode ->
 											core_abresult:done(Iter),
-											addNode(NewNode, Text);
+											addNode(Sid, NewNode, Text);
 										true ->
 											case core_abresult:hasNext(Iter) of
 												true ->
 													{_AltScore, AltNode} = core_abresult:next(Iter),
 													core_abresult:done(Iter),
-													addNode(AltNode, Text);
+													addNode(Sid, AltNode, Text);
 												false ->
 													core_abresult:done(Iter),
-													addNode(NewNode, Text)
+													addNode(Sid, NewNode, Text)
 											end
 									end
 							end;
 						false ->
 							core_abresult:done(Iter),
-							addNode(NewNode, Text)
+							addNode(Sid, NewNode, Text)
 					end
 			end;
 		false ->
 			core_abresult:done(Iter),
-			case core_node:isCheckmated(CurrentNode) of
+			case core_node:isCheckmated(Sid, CurrentNode) of
 				true ->
 					case CurrentNode of
 						#node{toMove=white} ->
-							core_gamestate:setCurrentState(black_win),
+							core_gamestate:setCurrentState(Sid, black_win),
 							#cmdresult{gsMoveMade=true, message="black has won by checkmate", text=Text};
 						#node{toMove=black} ->
-							core_gamestate:setCurrentState(white_win),
+							core_gamestate:setCurrentState(Sid, white_win),
 							#cmdresult{gsMoveMade=true, message="white has won by checkmate", text=Text}
 					end;
 				false ->
-					case core_node:isStalemate(CurrentNode) of
+					case core_node:isStalemate(Sid, CurrentNode) of
 						true ->
-							core_gamestate:setCurrentState(draw),
+							core_gamestate:setCurrentState(Sid, draw),
 							#cmdresult{gsMoveMade=true, message="stalemate", text=Text};
 						false ->
-							core_gamestate:setCurrentState(open),
+							core_gamestate:setCurrentState(Sid, open),
 							#cmdresult{gsMoveMade=true, text=Text}
 					end
 			end
@@ -212,9 +214,9 @@ drawDesired(_, _) ->
 %% The iterator is not terminated; it is the responsibility of the
 %% caller to terminate it.
 
--spec getNonStalemateNode(pid(), #node{}) -> #node{}.
+-spec getNonStalemateNode(sid(), pid(), #node{}) -> #node{}.
 
-getNonStalemateNode(Iter, CurrentNode) ->
+getNonStalemateNode(Sid, Iter, CurrentNode) ->
 	case core_abresult:next(Iter) of
 		error ->
 			core_util:inconsistencyException("cannot happen in getNonStalemateNode/2");
@@ -223,7 +225,7 @@ getNonStalemateNode(Iter, CurrentNode) ->
 				true ->
 					NewNode;
 				false ->
-					case core_node:isStalemate(NewNode) of
+					case core_node:isStalemate(Sid, NewNode) of
 						false ->
 							NewNode;
 						true ->
@@ -231,7 +233,7 @@ getNonStalemateNode(Iter, CurrentNode) ->
 								false ->
 									NewNode;
 								true ->
-									getNonStalemateNode(Iter, CurrentNode)
+									getNonStalemateNode(Sid, Iter, CurrentNode)
 							end
 					end
 			end
@@ -243,10 +245,10 @@ getNonStalemateNode(Iter, CurrentNode) ->
 
 
 
--spec canCauseRepetition(#abResult{}, #node{}) -> boolean().
+-spec canCauseRepetition(sid(), #abResult{}, #node{}) -> boolean().
 
-canCauseRepetition(Result, CurrentNode) ->
-	case willCauseRepetition(Result, CurrentNode) of
+canCauseRepetition(Sid, Result, CurrentNode) ->
+	case willCauseRepetition(Sid, Result, CurrentNode) of
 		null ->
 			false;
 		_ ->
@@ -254,16 +256,16 @@ canCauseRepetition(Result, CurrentNode) ->
 	end.
 
 
--spec willCauseRepetition(#abResult{}, #node{}) -> #node{} | null.
+-spec willCauseRepetition(sid(), #abResult{}, #node{}) -> #node{} | null.
 
-willCauseRepetition(#abResult{nodeSets=L}, #node{toMove=ToMove}) ->
+willCauseRepetition(Sid, #abResult{nodeSets=L}, #node{toMove=ToMove}) ->
 	Iter = core_abresult:iterator(L, ToMove),
-	wcrHelper(Iter).
+	wcrHelper(Sid, Iter).
 
 
--spec wcrHelper(pid()) -> #node{} | null.
+-spec wcrHelper(sid(), pid()) -> #node{} | null.
 
-wcrHelper(Iter) ->
+wcrHelper(Sid, Iter) ->
 	case core_abresult:hasNext(Iter) of
 		false ->
 			core_abresult:done(Iter),
@@ -271,13 +273,13 @@ wcrHelper(Iter) ->
 		true ->
 			{_Score, Node} = core_abresult:next(Iter),
 			Key = core_node:key(Node),
-			RepeatCount = core_gamestate:getRepeatCount(Key),
+			RepeatCount = core_gamestate:getRepeatCount(Sid, Key),
 			if
 				RepeatCount >= 2 ->
 					core_abresult:done(Iter),
 					Node;
 				true ->
-					wcrHelper(Iter)
+					wcrHelper(Sid, Iter)
 			end
 	end.
 
@@ -287,26 +289,26 @@ wcrHelper(Iter) ->
 %% @doc Performs a game_state:addNode/2 and returns
 %% a #cmdresult{}.
 
--spec addNode(#node{}, [string()]) -> #cmdresult{}.
+-spec addNode(sid(), #node{}, [string()]) -> #cmdresult{}.
 
-addNode(Node, Text) ->
-	case core_node:isStalemate(Node) of
+addNode(Sid, Node, Text) ->
+	case core_node:isStalemate(Sid, Node) of
 		true ->
-			core_gamestate:addNode(Node, draw),
+			core_gamestate:addNode(Sid, Node, draw),
 			#cmdresult{gsMoveMade=true, message="stalemate", text=Text};
 		false ->
-			case core_node:isCheckmated(Node) of
+			case core_node:isCheckmated(Sid, Node) of
 				true ->
 					case Node#node.toMove of
 						white ->
-							core_gamestate:addNode(Node, black_win),
+							core_gamestate:addNode(Sid, Node, black_win),
 							#cmdresult{gsMoveMade=true, message="black has won by checkmate", text=Text};
 						black ->
-							core_gamestate:addNode(Node, white_win),
+							core_gamestate:addNode(Sid, Node, white_win),
 							#cmdresult{gsMoveMade=true, message="white has won by checkmate", text=Text}
 					end;
 				false ->
-					core_gamestate:addNode(Node, open),
+					core_gamestate:addNode(Sid, Node, open),
 					#cmdresult{gsMoveMade=true, text=Text}
 			end
 	end.
@@ -327,5 +329,5 @@ addNode(Node, Text) ->
 %% @doc Store a suggestion.
 %% @spec setSuggestion(integer(), [string()]) -> ok
 
-setSuggestion(Stamp, ArgList) ->
-	core_state:sput(suggestion, {Stamp, ArgList}).
+setSuggestion(Sid, Stamp, ArgList) ->
+	core_state:sput({Sid, suggestion}, {Stamp, ArgList}).

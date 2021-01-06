@@ -23,6 +23,8 @@
 %% Include files
 %%
 
+-include("antonius.hrl").
+
 %%
 %% Exported Functions
 %%
@@ -32,13 +34,13 @@
 %% API Functions
 %%
 
--spec execute([string()]) -> ok.
+-spec execute([sid()|string()]) -> ok.
 
-execute([DepthArg]) ->
+execute([Sid, DepthArg]) ->
 	xbi_controller:log("execute: sd ~s", [DepthArg]),
 	Depth = list_to_integer(DepthArg),
 	xbi_controller:log("setting recursion depth: ~p", [Depth]),
-	param_parameter:setRecursionDepth(Depth),
+	param_parameter:setRecursionDepth(Sid, Depth),
 	ok.
 	
 

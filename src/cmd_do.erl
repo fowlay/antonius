@@ -69,26 +69,26 @@ init() ->
 
 %% @doc TODO
 
--spec do([string()]) -> #cmdresult{}.
+-spec do([sid()|string()]) -> #cmdresult{}.
 
-do([]) ->
-	do(["1"]);
+do([Sid]) ->
+	do([Sid, "1"]);
 	
-do([X]) ->
-	do([X, "-1"]);
+do([Sid, X]) ->
+	do([Sid, X, "-1"]);
 		 
-do([X, Y]) ->
+do([Sid, X, Y]) ->
 	Index = list_to_integer(X),
 	Depth = list_to_integer(Y),
 	
-	#node{toMove=ToMove}=CurrentNode = core_gamestate:getCurrentNode(),
+	#node{toMove=ToMove}=CurrentNode = core_gamestate:getCurrentNode(Sid),
 	
 	AbResult =
 		if
 			Depth =:= -1 ->
-				core_gamestate:getAbResult(core_node:key(CurrentNode));
+				core_gamestate:getAbResult(Sid, core_node:key(CurrentNode));
 			true ->
-				core_gamestate:getAbResult(core_node:key(CurrentNode), Depth)
+				core_gamestate:getAbResult(Sid, core_node:key(CurrentNode), Depth)
 		end,
 	
 	if

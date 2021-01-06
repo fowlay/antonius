@@ -30,23 +30,23 @@
 %%
 %% Exported Functions
 %%
--export([run/4]).
+-export([run/5]).
 
 %%
 %% API Functions
 %%
 
--spec run(pid(), #node{}, smallint(), #board{}) -> ok.
+-spec run(sid(), pid(), #node{}, smallint(), #board{}) -> ok.
 		  
-run(Caller, #node{toMove=white}=Node, Depth, Board) ->
+run(Sid, Caller, #node{toMove=white}=Node, Depth, Board) ->
 	put(board, Board),
-	V = core_node:abWhite(Node, Depth, ?SMALLINT_MIN_VALUE, ?SMALLINT_MAX_VALUE),
+	V = core_node:abWhite(Sid, Node, Depth, ?SMALLINT_MIN_VALUE, ?SMALLINT_MAX_VALUE),
 	Caller ! {ok, Node, V},
 	ok;
 
-run(Caller, #node{toMove=black}=Node, Depth, Board) ->
+run(Sid, Caller, #node{toMove=black}=Node, Depth, Board) ->
 	put(board, Board),
-	V = core_node:abBlack(Node, ?SMALLINT_MIN_VALUE, ?SMALLINT_MAX_VALUE, Depth),
+	V = core_node:abBlack(Sid, Node, ?SMALLINT_MIN_VALUE, ?SMALLINT_MAX_VALUE, Depth),
 	Caller ! {ok, Node, V},
 	ok.
 	

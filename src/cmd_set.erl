@@ -30,7 +30,7 @@
 
 -export([setdepth/1]).
 
--export([setthreads/1]).
+%% -export([setthreads/1]).
 
 %%
 %% Include files
@@ -66,21 +66,23 @@ init() ->
 	   "",
 	   "The given DEPTH will be used as the recursion depth by",
 	   "commands that do not specify the depth explicitly."
-	  ]),
-	
-	cmd_dict:mergeCommand(
-	  "setthreads", 
-	  fun ?MODULE:setthreads/1,
-	  1,
-	  0,
-	  "set number of execution threads",
-	  [
-	   "Synopsis:",
-	   "",
-	   "    setthreads THREADS",
-	   "",
-	   "Execute on the given number of threads."
-	  ]).
+	  ])
+
+%%     ,
+%% 	cmd_dict:mergeCommand(
+%% 	  "setthreads", 
+%% 	  fun ?MODULE:setthreads/1,
+%% 	  1,
+%% 	  0,
+%% 	  "set number of execution threads",
+%% 	  [
+%% 	   "Synopsis:",
+%% 	   "",
+%% 	   "    setthreads THREADS",
+%% 	   "",
+%% 	   "Execute on the given number of threads."
+%% 	  ])
+      .
 
 %%
 %% Local Functions
@@ -96,17 +98,17 @@ init() ->
 %%
 %% TODO, sanity checking?
 
--spec setdepth([string()]) -> #cmdresult{}.
+-spec setdepth([sid()|string()]) -> #cmdresult{}.
 
-setdepth([Depth]) ->
-	param_parameter:setRecursionDepth(list_to_integer(Depth)),
+setdepth([Sid, Depth]) ->
+	param_parameter:setRecursionDepth(Sid, list_to_integer(Depth)),
     #cmdresult{}.
 
 
-%% @doc Sets the number of threads.
+%% +doc Sets the number of threads.
 %%
 %% TODO, sanity checking?
 
-setthreads([Threads]) ->
-    param_parameter:setNumberOfThreads(list_to_integer(Threads)),
-	#cmdresult{}.
+%% setthreads([Threads]) ->
+%%     param_parameter:setNumberOfThreads(list_to_integer(Threads)),
+%% 	#cmdresult{}.

@@ -53,21 +53,21 @@
 -export([insertPiece/2]).
 -export([insertPiece/4]).
 
--export([expand/1]).
--export([makeMove/3]).
+-export([expand/2]).
+-export([makeMove/5]).
 
--export([verifyLegal/2]).
+-export([verifyLegal/3]).
 
--export([expandAndSelect/2]).
--export([expandAndSelect/4]).
+-export([expandAndSelect/3]).
+-export([expandAndSelect/5]).
 
--export([alphaBetaRoot/2]).
+-export([alphaBetaRoot/3]).
 
 -export([key/1]).
 -export([toString/1]).
 
--export([abWhite/4]).
--export([abBlack/4]).
+-export([abWhite/5]).
+-export([abBlack/5]).
 
 -export([isChecked/1]).
 
@@ -75,10 +75,10 @@
 
 -export([getState/1]).
 
--export([isCheckmated/1]).
--export([isStalemate/1]).
+-export([isCheckmated/2]).
+-export([isStalemate/2]).
 
--export([toStringList/1]).
+-export([toStringList/2]).
 
 -export([loss/3]).
 
@@ -94,9 +94,10 @@
 %% @doc Return a stringlist that depicts the chessboard with
 %% black and white pieces.
 
--spec toStringList(#node{}) ->  [string()].
+-spec toStringList(sid(), #node{}) ->  [string()].
 
-toStringList(#node{pieces=Pieces}) ->
+toStringList(_Sid,        % TODO, does not need Sid
+			 #node{pieces=Pieces}) ->
 	#board{tuple=Tuple} = get(board),
 	Files = "    A   B   C   D   E   F   G   H",
 	Border = " +--------------------------------+",
@@ -320,10 +321,10 @@ faultyValue([#piece{square=Square}|_]) ->
 	end.
 
 
--spec verifyLegal(#node{}, #node{}) -> ok | none().
+-spec verifyLegal(sid(), #node{}, #node{}) -> ok | none().
 
-verifyLegal(FromNode, ToNode) ->
-	ToNodes = expand(FromNode),
+verifyLegal(Sid, FromNode, ToNode) ->
+	ToNodes = expand(Sid, FromNode),
 	verifyLegalHelper(ToNode, ToNodes).
 
 
@@ -348,9 +349,9 @@ verifyLegalHelper(ToNode, [Node|Tail]) ->
 %% TODO: Castling
 %% TODO: Promotion
 
--spec expand(#node{}) -> [#node{}].
+-spec expand(sid(), #node{}) -> [#node{}].
 
-expand(#node{toMove=ToMove}=Node) ->
+expand(Sid, #node{toMove=ToMove}=Node) ->
 	%if   TODO ... this cannot possibly be important to open-code?
 	%	ToMove =:= white ->
 	%		Own = White;
@@ -358,19 +359,19 @@ expand(#node{toMove=ToMove}=Node) ->
 	%		Own = Black
 	%end,
 	Own = getMaterial(Node, ToMove),
-	S = expandOuter(Own, [], Node),
+	S = expandOuter(Sid, Own, [], Node),
 	
 	Opp = getMaterial(Node, core_colour:otherColour(ToMove)),
 	
 	% TODO, clean up
-	case castle(Node, Own, Opp, true) of
+	case castle(Sid, Node, Own, Opp, true) of
 		null ->
 			T = S;
 		N1 ->
 			T = insert(N1, S)
 	end,
 	
-	case castle(Node, Own, Opp, false) of
+	case castle(Sid, Node, Own, Opp, false) of
 		null ->
 			T;
 		N2 ->
@@ -425,9 +426,11 @@ checkPath([Index|Tail], BoardMap, Node, Opp, LeadingItem, Tuple) ->
 	   end.
 
 
--spec castle(#node{}, [#piece{}], [#piece{}], boolean()) -> #node{} | null.
+-spec castle(sid(), #node{}, [#piece{}], [#piece{}], boolean()) -> #node{} | null.
 
-castle(#node{toMove=ToMove, pieces=BoardMap, isWhiteCastled=IWC, isBlackCastled=IBC}=N, Own, Opp, Long) ->
+
+castle(_Sid,   % TODO, does not use Sid
+	   #node{toMove=ToMove, pieces=BoardMap, isWhiteCastled=IWC, isBlackCastled=IBC}=N, Own, Opp, Long) ->
 	#piece{pristine=Pristine, square=#square{castleLongCorner=CLC, castleShortCorner=CSC, castleLongPath=CLP, castleShortPath=CSP}=KingSquare} = core_material:getKing(Own),
 	case Pristine of
 		false ->
@@ -482,40 +485,40 @@ pathGet(K, [_|Cdr], _Array, Tuple) ->
 
 
 
--spec expandOuter([#piece{}], [#node{}], #node{}) ->  [#node{}].
+-spec expandOuter(sid(), [#piece{}], [#node{}], #node{}) ->  [#node{}].
 
-expandOuter([], E, _Node) ->
+expandOuter(_Sid, [], E, _Node) ->
 	E;
 
-expandOuter([#piece{square=Square}=P|Tail], E, #node{toMove=ToMove, pieces=BoardMap, movedPawn=MovedPawn}=Node) ->
+expandOuter(Sid, [#piece{square=Square}=P|Tail], E, #node{toMove=ToMove, pieces=BoardMap, movedPawn=MovedPawn}=Node) ->
 	Squares = core_material:getSquares(P, ToMove, BoardMap, MovedPawn),
-	F = expandInner(Squares, E, Node, Square, P),
-	expandOuter(Tail, F, Node).
+	F = expandInner(Sid, Squares, E, Node, Square, P),
+	expandOuter(Sid, Tail, F, Node).
 
 
 
--spec expandInner([#square{}], [#node{}], #node{}, #square{}, #piece{}) -> 
+-spec expandInner(sid(), [#square{}], [#node{}], #node{}, #square{}, #piece{}) -> 
                      [#node{}].
 
-expandInner([], E, _Node, _FromSquare, _P) ->
+expandInner(_Sid, [], E, _Node, _FromSquare, _P) ->
 	E;
 
-expandInner([#square{y=Y}=Place|Tail], E, #node{toMove=ToMove}=Node, FromSquare, #piece{type=Type}=P) ->
+expandInner(Sid, [#square{y=Y}=Place|Tail], E, #node{toMove=ToMove}=Node, FromSquare, #piece{type=Type}=P) ->
 	if
 		ToMove =:= white, Y =:= 8, Type=:=whitePawn ->
-			F = addWhenLegal(makeMove(Node, FromSquare, Place, queen), E),
-			G = addWhenLegal(makeMove(Node, FromSquare, Place, rook), F),
-			H = addWhenLegal(makeMove(Node, FromSquare, Place, bishop), G),
-			J = addWhenLegal(makeMove(Node, FromSquare, Place, knight), H);
+			F = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, queen), E),
+			G = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, rook), F),
+			H = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, bishop), G),
+			J = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, knight), H);
 		ToMove =:= black, Y =:= 1, Type=:=blackPawn ->
-			F = addWhenLegal(makeMove(Node, FromSquare, Place, queen), E),
-			G = addWhenLegal(makeMove(Node, FromSquare, Place, rook), F),
-			H = addWhenLegal(makeMove(Node, FromSquare, Place, bishop), G),
-			J = addWhenLegal(makeMove(Node, FromSquare, Place, knight), H);
+			F = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, queen), E),
+			G = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, rook), F),
+			H = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, bishop), G),
+			J = addWhenLegal(makeMove(Sid, Node, FromSquare, Place, knight), H);
 		true ->
-			J = addWhenLegal(makeMove(Node, FromSquare, Place), E)
+			J = addWhenLegal(makeMove(Sid, Node, FromSquare, Place), E)
 	end,
-	expandInner(Tail, J, Node, FromSquare, P).
+	expandInner(Sid, Tail, J, Node, FromSquare, P).
 
 
 
@@ -562,11 +565,11 @@ isCheckedAfterMove(#node{white=White, black=Black, toMove=ToMove}=N) ->
 
 
 
--spec makeMove(#node{}, #square{}, #square{}) -> #node{}.
+-spec makeMove(sid(), #node{}, #square{}, #square{}) -> #node{}.
 
-makeMove(#node{toMove=white, white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To) ->
+makeMove(Sid, #node{toMove=white, white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To) ->
 	Mown = newOwnMaterial(N, White, From, To),
-	Mopp = newOppMaterial(N, Black, From, To),
+	Mopp = newOppMaterial(Sid, N, Black, From, To),
 	JustMovedWhitePawn = getJustMovedWhitePawn(From, To, Mown),
 	
 %% 	if
@@ -582,9 +585,9 @@ makeMove(#node{toMove=white, white=White, black=Black, isWhiteCastled=WC, isBlac
 
 	create(Mown, Mopp, black, JustMovedWhitePawn, WC, BC);
 
-makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To) ->
+makeMove(Sid, #node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To) ->
 	Mown = newOwnMaterial(N, Black, From, To),
-	Mopp = newOppMaterial(N, White, From, To),
+	Mopp = newOppMaterial(Sid, N, White, From, To),
 	JustMovedBlackPawn = getJustMovedBlackPawn(From, To, Mown),
 	
 %% 	if
@@ -601,19 +604,19 @@ makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N
 	create(Mopp, Mown, white, JustMovedBlackPawn, WC, BC).
 
 
-%% @doc Promotion context. The 4th argument specifies one of
+%% @doc Promotion context. The 5th argument specifies one of
 %% queen, rook, bishop or knight.
 
--spec makeMove(#node{}, #square{}, #square{}, atom()) -> #node{}.
+-spec makeMove(sid(), #node{}, #square{}, #square{}, atom()) -> #node{}.
 
-makeMove(#node{toMove=white, white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To, Type) ->
+makeMove(Sid, #node{toMove=white, white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To, Type) ->
 	Mown = newOwnMaterial(white, White, From, Type, To),
-	Mopp = newOppMaterial(N, Black, From, To),
+	Mopp = newOppMaterial(Sid, N, Black, From, To),
 	create(Mown, Mopp, black, null, WC, BC);
 
-makeMove(#node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To, Type) ->
+makeMove(Sid, #node{white=White, black=Black, isWhiteCastled=WC, isBlackCastled=BC}=N, From, To, Type) ->
 	Mown = newOwnMaterial(black, Black, From, Type, To),
-	Mopp = newOppMaterial(N, White, From, To),
+	Mopp = newOppMaterial(Sid, N, White, From, To),
 	create(Mopp, Mown, white, null, WC, BC).
 
 
@@ -696,9 +699,12 @@ newOwnMaterial(ToMove, Own, From, Type, To) ->
 	remove(From, insertPiece(Type, ToMove, To, Own)).
 
 
--spec newOppMaterial(#node{}, [#piece{}], #square{}, #square{}) -> [#piece{}].
+-spec newOppMaterial(sid(), #node{}, [#piece{}], #square{}, #square{}) -> [#piece{}].
 
-newOppMaterial(#node{toMove=ToMove, pieces=BoardMap}, 
+
+%% TODO, does not need Sid
+newOppMaterial(_Sid,
+			   #node{toMove=ToMove, pieces=BoardMap}, 
 			   Opp, 
 			   #square{enPassantKiller=EPK, x=FromX}=From, 
 			   #square{x=ToX, epKillSquare=EPKS}=To) ->
@@ -924,14 +930,14 @@ compareBlack([#piece{type=TM, square=#square{tupleIndex=NM}, order=OM}|TailM],
 	end.
 
 
--spec expandAndSelect(#node{}, smallint()) -> #node{}.
+-spec expandAndSelect(sid(), #node{}, smallint()) -> #node{}.
 
-expandAndSelect(#node{toMove=ToMove}=Node, KingDestFile) ->
+expandAndSelect(Sid, #node{toMove=ToMove}=Node, KingDestFile) ->
 	Rank = case ToMove of white -> 1; _ -> 8 end,
-	From = core_board:getSquare(5, Rank),
-	To = core_board:getSquare(KingDestFile, Rank),
+	From = core_board:getSquare(Sid, 5, Rank),
+	To = core_board:getSquare(Sid, KingDestFile, Rank),
 	 
-	NewNodes = expand(Node),
+	NewNodes = expand(Sid, Node),
 	 
 	Result = expandAndSelectHelper(NewNodes, [], Node, From, To),
 	 
@@ -961,11 +967,11 @@ expandAndSelectHelper([#node{}=NewNode|Tail], E, #node{toMove=ToMove}=Node, From
 	end.
 
 
--spec expandAndSelect(#node{}, #square{}, #square{}, atom()) -> #node{}.
+-spec expandAndSelect(sid(), #node{}, #square{}, #square{}, atom()) -> #node{}.
 
-expandAndSelect(Node, From, To, Prom) ->
+expandAndSelect(Sid, Node, From, To, Prom) ->
 	
-	NewNodes = expand(Node),
+	NewNodes = expand(Sid, Node),
 	 
 	Result = expandAndSelectHelper(NewNodes, [], Node, From, To, Prom),
 
@@ -1124,14 +1130,14 @@ bmget(#square{tupleIndex=TupleIndex}, #boardMap{tuple=Tuple}) ->
 	element(TupleIndex, Tuple).
 
 
--spec alphaBetaRoot(#node{}, smallint()) ->  #abResult{}.
+-spec alphaBetaRoot(sid(), #node{}, smallint()) ->  #abResult{}.
 
-alphaBetaRoot(#node{toMove=ToMove}=CurrentNode, RecursionDepth) ->
+alphaBetaRoot(Sid, #node{toMove=ToMove}=CurrentNode, RecursionDepth) ->
 
 	Opponent = core_colour:otherColour(ToMove),
 
 	%% expect an ordered set of nodes
-	Nodes = expand(CurrentNode),
+	Nodes = expand(Sid, CurrentNode),
 	
 	case Nodes of
 		[] ->
@@ -1143,7 +1149,7 @@ alphaBetaRoot(#node{toMove=ToMove}=CurrentNode, RecursionDepth) ->
 			end;
 		_ ->
 			%% we have nodes ... look for immediate checkmate
-            case isCheckMate(Nodes) of
+            case isCheckMate(Sid, Nodes) of
 				{true, CMNode} ->
 					core_abresult:createSingle(CMNode, atom_to_list(Opponent) ++ " can be checkmated");
 				_ ->
@@ -1151,7 +1157,7 @@ alphaBetaRoot(#node{toMove=ToMove}=CurrentNode, RecursionDepth) ->
 						[JustOneNode] ->
 							core_abresult:createSingle(JustOneNode, atom_to_list(ToMove) ++ " move is forced");
 						_ ->
-							#abResult{nodeSets=NN} = alphaBetaRootHelper(Nodes, RecursionDepth),
+							#abResult{nodeSets=NN} = alphaBetaRootHelper(Sid, Nodes, RecursionDepth),
 							core_abresult:create(NN, null)
 					end
 			end
@@ -1160,36 +1166,36 @@ alphaBetaRoot(#node{toMove=ToMove}=CurrentNode, RecursionDepth) ->
 
 
 
--spec isCheckMate([#node{}]) -> {boolean(), xnode()}.
+-spec isCheckMate(sid(), [#node{}]) -> {boolean(), xnode()}.
 
-isCheckMate([]) ->
+isCheckMate(_Sid, []) ->
 	{false, null};
 
-isCheckMate([Child|Tail]) ->
+isCheckMate(Sid, [Child|Tail]) ->
 	%% child is checked, and grandchildren empty
     case isChecked(Child) of
 		true ->
-			case expand(Child) of
+			case expand(Sid, Child) of
 				[] -> 
 					{true, Child};
 				_ ->
-					isCheckMate(Tail)
+					isCheckMate(Sid, Tail)
 			end;
 	    _ ->
-            isCheckMate(Tail)
+            isCheckMate(Sid, Tail)
     end.
 
 
--spec alphaBetaRootHelper([#node{}], smallint()) -> #abResult{}.
+-spec alphaBetaRootHelper(sid(), [#node{}], smallint()) -> #abResult{}.
 
-alphaBetaRootHelper(Children, Depth) ->
+alphaBetaRootHelper(Sid, Children, Depth) ->
 	MaxThreads = param_parameter:getNumberOfThreads(),
-	h(Children, core_abresult:create([], ""), Depth - 1, 0, MaxThreads, 0, length(Children)).
+	h(Sid, Children, core_abresult:create([], ""), Depth - 1, 0, MaxThreads, 0, length(Children)).
 
 
--spec h([#node{}], #abResult{}, smallint(), smallint(), smallint(), smallint(), smallint()) -> #abResult{}.
+-spec h(sid(), [#node{}], #abResult{}, smallint(), smallint(), smallint(), smallint(), smallint()) -> #abResult{}.
 		  
-h([], R, _, PL, _, ResultsDelivered, ResultsExpected) when ResultsDelivered =:= ResultsExpected ->
+h(_Sid, [], R, _, PL, _, ResultsDelivered, ResultsExpected) when ResultsDelivered =:= ResultsExpected ->
 	if
 		PL =/= 0 ->
 			core_util:inconsistencyException("inconsistent process count: ~w", [PL]);
@@ -1198,15 +1204,15 @@ h([], R, _, PL, _, ResultsDelivered, ResultsExpected) when ResultsDelivered =:= 
 	end,
 	R;
 
-h([], R, D, PL, PMax, RD, RE) ->
+h(Sid, [], R, D, PL, PMax, RD, RE) ->
 	receive
 		{ok, Node, ABValue} ->
-			h([], core_abresult:add(Node, ABValue, R), D, PL - 1, PMax, RD + 1, RE)
+			h(Sid, [], core_abresult:add(Node, ABValue, R), D, PL - 1, PMax, RD + 1, RE)
 	end;
 			
 
 %% h([Child|Tail], R, D, PL, PM, RD, RE) when PL < PM ->
-%% 	spawn(?MODULE, abw, [self(), Child, D, get(board)]),
+%% 	spawn(?MODULE, abw, [self(), Child, D, core_board:instance(Sid)]),
 %% 	h([Tail], R, D, PL + 1, PM, RD, RE);
 %% 
 %% h(Children, R, D, PL, PM, RD, RE) ->
@@ -1216,14 +1222,14 @@ h([], R, D, PL, PMax, RD, RE) ->
 %% 	end.
 
 
-h([Child|Tail], R, D, PL, PM, RD, RE) when PL < PM ->
-	spawn(core_abrunner, run, [self(), Child, D, get(board)]),
-	h(Tail, R, D, PL + 1, PM, RD, RE);
+h(Sid, [Child|Tail], R, D, PL, PM, RD, RE) when PL < PM ->
+	spawn(core_abrunner, run, [Sid, self(), Child, D, get(board)]),
+	h(Sid, Tail, R, D, PL + 1, PM, RD, RE);
 
-h(Children, R, D, PL, PM, RD, RE) ->
+h(Sid, Children, R, D, PL, PM, RD, RE) ->
 	receive
 		{ok, Node, ABValue} ->
-			h(Children, core_abresult:add(Node, ABValue, R), D, PL - 1, PM, RD + 1, RE)
+			h(Sid, Children, core_abresult:add(Node, ABValue, R), D, PL - 1, PM, RD + 1, RE)
 	end.
 
 
@@ -1247,14 +1253,14 @@ isChecked(#node{toMove=black, white=Opp, black=Own}=N) ->
 
 %% @doc Not time critical.
 
--spec isCheckmated(#node{}) -> boolean().
+-spec isCheckmated(sid(), #node{}) -> boolean().
 
-isCheckmated(Node) ->
+isCheckmated(Sid, Node) ->
 	case isChecked(Node) of
 		false ->
 			false;
 		true ->
-			case expand(Node) of
+			case expand(Sid, Node) of
 				[] ->
 					true;
 				_ ->
@@ -1265,12 +1271,12 @@ isCheckmated(Node) ->
 
 %% @doc Not time critical.
 
--spec isStalemate(#node{}) -> boolean().
+-spec isStalemate(sid(), #node{}) -> boolean().
 
-isStalemate(Node) ->
+isStalemate(Sid, Node) ->
 	case isChecked(Node) of
 		false ->
-			case expand(Node) of
+			case expand(Sid, Node) of
 				[] ->
 					true;
 				_ ->
@@ -1285,13 +1291,13 @@ isStalemate(Node) ->
 
 
 
--spec abWhite(#node{}, smallint(), smallint(), smallint()) -> smallint().
+-spec abWhite(sid(), #node{}, smallint(), smallint(), smallint()) -> smallint().
 
-abWhite(#node{blackAdvantage=A}, 0, _, _) ->
+abWhite(_Sid, #node{blackAdvantage=A}, 0, _, _) ->
 	A;
 
-abWhite(Node, Depth, A, B) ->
-	Nodes = expand(Node),
+abWhite(Sid, Node, Depth, A, B) ->
+	Nodes = expand(Sid, Node),
 	
 	case Nodes of
 		[] ->
@@ -1299,37 +1305,37 @@ abWhite(Node, Depth, A, B) ->
 				true ->
 					?SMALLINT_MAX_VALUE;
 				_ ->
-					abWhiteHelper(Nodes, A, B, B, Depth)
+					abWhiteHelper(Sid, Nodes, A, B, B, Depth)
 			end;
 		_ ->
-			abWhiteHelper(Nodes, A, B, B, Depth)
+			abWhiteHelper(Sid, Nodes, A, B, B, Depth)
 	end.
 
 
--spec abWhiteHelper([#node{}], smallint(), smallint(), smallint(), smallint()) -> smallint().
+-spec abWhiteHelper(sid(), [#node{}], smallint(), smallint(), smallint(), smallint()) -> smallint().
 
-abWhiteHelper([], _, _, ResBeta, _) ->
+abWhiteHelper(_Sid, [], _, _, ResBeta, _) ->
 	ResBeta;
 
-abWhiteHelper([Child|Tail], A, B, RB, D) ->
-	ABBlack = abBlack(Child, A, RB, D - 1),
+abWhiteHelper(Sid, [Child|Tail], A, B, RB, D) ->
+	ABBlack = abBlack(Sid, Child, A, RB, D - 1),
 	NewResBeta = mathmin(RB, ABBlack),
 	if
 		NewResBeta =< A ->
 			NewResBeta;
 		true ->
-			abWhiteHelper(Tail, A, B, NewResBeta, D)
+			abWhiteHelper(Sid, Tail, A, B, NewResBeta, D)
 	end.
 
 
 
--spec abBlack(#node{}, smallint(), smallint(), smallint()) -> smallint().
+-spec abBlack(sid(), #node{}, smallint(), smallint(), smallint()) -> smallint().
 
-abBlack(#node{blackAdvantage=A}, _, _, 0) -> 
+abBlack(_Sid, #node{blackAdvantage=A}, _, _, 0) -> 
 	A;
 
-abBlack(Node, A, B, Depth) ->
-	Nodes = expand(Node),
+abBlack(Sid, Node, A, B, Depth) ->
+	Nodes = expand(Sid, Node),
 	
 	%% nodeTrace(Node, Nodes, Depth),
 	
@@ -1343,24 +1349,24 @@ abBlack(Node, A, B, Depth) ->
 					?SMALLINT_MIN_VALUE
 			end;
 		_ ->
-			alphaBetaBlackHelper(Nodes, A, B, A, Depth)
+			alphaBetaBlackHelper(Sid, Nodes, A, B, A, Depth)
 	end.
 
 
 
--spec alphaBetaBlackHelper([#node{}], smallint(), smallint(), smallint(), smallint()) -> smallint().
+-spec alphaBetaBlackHelper(sid(), [#node{}], smallint(), smallint(), smallint(), smallint()) -> smallint().
 
-alphaBetaBlackHelper([], _, _, ResAlpha, _) ->
+alphaBetaBlackHelper(_Sid, [], _, _, ResAlpha, _) ->
 	ResAlpha;
 
-alphaBetaBlackHelper([Child|Tail], A, B, ResAlpha, D) ->
-	ABWhite = abWhite(Child, D - 1, ResAlpha, B),
+alphaBetaBlackHelper(Sid, [Child|Tail], A, B, ResAlpha, D) ->
+	ABWhite = abWhite(Sid, Child, D - 1, ResAlpha, B),
 	NewResAlpha = mathmax(ResAlpha, ABWhite),
 	if
 		NewResAlpha >= B ->
 			NewResAlpha;
 		true ->
-			alphaBetaBlackHelper(Tail, A, B, NewResAlpha, D)
+			alphaBetaBlackHelper(Sid, Tail, A, B, NewResAlpha, D)
 	end.
 
 

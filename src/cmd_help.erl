@@ -69,13 +69,13 @@ init() ->
 %% @doc Provide brief help on all commands,
 %% or a description of a particular command.
 
--spec help([string()]) -> #cmdresult{}.
+-spec help([sid()|string()]) -> #cmdresult{}.
 
-help([]) ->
+help([_Sid]) ->
 	Lines = cmd_dict:getOneLiners(),
 	#cmdresult{text=Lines};
 
-help([Command]) ->
+help([_Sid, Command]) ->
 	Lines = cmd_dict:getDescription(Command),
 	#cmdresult{text=Lines}.
 

@@ -34,20 +34,20 @@
 %% API Functions
 %%
 
--spec execute([string()]) -> ok.
+-spec execute([sid()|string()]) -> ok.
 
-execute([ProtocolVersion]) ->
+execute([Sid, ProtocolVersion]) ->
 	xbi_controller:log("execute: protover ~s", [ProtocolVersion]),
 	
 	% TODO: Verify that version 2 is offered
 	
-	xbi_controller:stdout("feature myname=~s~s ~w.~w~s",
-					      [[34], ?ENGINE_NAME, ?ENGINE_VERSION_MAJOR, ?ENGINE_VERSION_MINOR, [34]]),
+	xbi_controller:stdout(Sid, "feature myname=~s~s ~w.~w~s",
+					      [[$"], ?ENGINE_NAME, ?ENGINE_VERSION_MAJOR, ?ENGINE_VERSION_MINOR, [$"]]),
 	
-	xbi_controller:stdout("feature usermove=1"),
-	xbi_controller:stdout("feature colors=0"),
-	xbi_controller:stdout("feature debug=1"),
-	xbi_controller:stdout("feature done=1"),
+	xbi_controller:stdout(Sid, "feature usermove=1"),
+	xbi_controller:stdout(Sid, "feature colors=0"),
+	xbi_controller:stdout(Sid, "feature debug=1"),
+	xbi_controller:stdout(Sid, "feature done=1"),
 	ok.
 	
 

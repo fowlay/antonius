@@ -47,24 +47,12 @@
 -spec run({string(), o_device()}, atom()) -> ok.
 
 run({TestDir, ResultDevice}, Test) ->
-
-ct:print("run/2 args: ~p", [[{TestDir, ResultDevice}, Test]]),
-
-
-
-
+	ct:print("run/2 args: ~p", [[{TestDir, ResultDevice}, Test]]),
 	io:fwrite(ResultDevice, "====== Running test: ~w ==========================~n", [Test]),
-
-ct:print("...", []),
-
+	ct:print("...", []),
 	MetadataInDevice = getInDevice(TestDir, Test, "metadata"),
-
-ct:print("...", []),
-
+	ct:print("...", []),
 	Mode = list_to_atom(getLine(MetadataInDevice)),
-
-
-
 	run(TestDir, Test, MetadataInDevice, ResultDevice, Mode),
 	file:close(MetadataInDevice).
 
@@ -79,22 +67,22 @@ ct:print("...", []),
 -spec run(string(), atom(), o_device(), o_device(), atom()) -> any().
 
 run(TestDir, Test, MetadataInDevice, ResultDevice, positive) ->
-
-ct:print("run/5: ~p", [[TestDir, Test, MetadataInDevice, ResultDevice, positive]]),
-
+	ct:print("run/5: ~p", [[TestDir, Test, MetadataInDevice, ResultDevice, positive]]),
+	
+	Sid = test,
 	CommandsInDevice = getInDevice(TestDir, Test, "commands"),
-	try cli_game:play(true, true, CommandsInDevice, ResultDevice) of
+	try cli_game:play(test, true, true, CommandsInDevice, ResultDevice) of
 		GameState ->
-			case core_gamestate:hasNodes() of
+			case core_gamestate:hasNodes(Sid) of
 				true ->
 					Key = getLine(MetadataInDevice),
 					State = list_to_atom(getLine(MetadataInDevice)),
-					Node = core_gamestate:getCurrentNode(GameState),
+					Node = core_gamestate:getCurrentNodeFromGameState(GameState),
 					?assertEqual(Key, core_node:toString(Node)),
-					?assertEqual(State, core_gamestate:getState());
+					?assertEqual(State, core_gamestate:getState(Sid));
 				_ ->
 					State = list_to_atom(getLine(MetadataInDevice)),
-					?assertEqual(State, core_gamestate:getState())
+					?assertEqual(State, core_gamestate:getState(Sid))
 			end,
 			file:close(CommandsInDevice),
 			file:close(MetadataInDevice)
@@ -116,7 +104,7 @@ ct:print("run/5: ~p", [[TestDir, Test, MetadataInDevice, ResultDevice, positive]
 
 run(TestDir, Test, MetadataInDevice, ResultDevice, negative) ->
 	CommandsInDevice = getInDevice(TestDir, Test, "commands"),
-	try cli_game:play(true, true, CommandsInDevice, ResultDevice) of
+	try cli_game:play(test, true, true, CommandsInDevice, ResultDevice) of
 		    GameState ->
 			    file:close(CommandsInDevice),
 			    file:close(MetadataInDevice),

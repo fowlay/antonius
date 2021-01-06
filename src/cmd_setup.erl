@@ -30,11 +30,11 @@
 
 -export([setupempty/1]).
 
--export([setupHelper/1]).
+-export([setupHelper/2]).
 
 -export([setup/1]).
 
--export([resetParameters/0]).
+-export([resetParameters/1]).
 
 %%
 %% Include files
@@ -96,25 +96,28 @@ init() ->
 -spec setupempty([string()]) -> #cmdresult{}.
 
 setupempty(_Args) ->
-	core_gamestate:clear(),
-	resetParameters(),
+	
+	Sid = test,
+	
+	core_gamestate:clear(Sid),
+	resetParameters(Sid),
 	Node = core_node:create(
 			      "",
 			      "",
 			      white),
-	core_gamestate:addNode(Node),
+	core_gamestate:addNode(Sid, Node),
 	#cmdresult{gsMoveMade=true}.
 
 
 
--spec setupHelper(boolean()) -> #cmdresult{}.
+-spec setupHelper(sid(), boolean()) -> #cmdresult{}.
 
-setupHelper(Reset) ->
-	core_gamestate:clear(),
+setupHelper(Sid, Reset) ->
+	core_gamestate:clear(Sid),
 	
 	if
 		Reset ->
-			resetParameters();
+			resetParameters(Sid);
 		true ->
 			ok
 	end,
@@ -123,8 +126,8 @@ setupHelper(Reset) ->
 			      "*Ra1 Nb1 Bc1 Qd1 *Ke1 Bf1 Ng1 *Rh1 a2 b2 c2 d2 e2 f2 g2 h2",
 			      "*Ra8 Nb8 Bc8 Qd8 *Ke8 Bf8 Ng8 *Rh8 a7 b7 c7 d7 e7 f7 g7 h7",
 			      white),
-	core_gamestate:addNode(Node),
-	core_gamestate:setCurrentState(open),
+	core_gamestate:addNode(Sid, Node),
+	core_gamestate:setCurrentState(Sid, open),
 	#cmdresult{}.
 
 % getSuggestion() ->
@@ -136,26 +139,25 @@ setupHelper(Reset) ->
 %%
 %% TODO: Do we really need to handle UC?
 
--spec setup([string()]) -> #cmdresult{}.
+-spec setup([sid()|string()]) -> #cmdresult{}.
 
-setup(["r"]) ->
-	setupHelper(true);
+setup([Sid, "r"]) ->
+	setupHelper(Sid, true);
 	
-setup(["R"]) ->
-		setupHelper(true);
+setup([Sid, "R"]) ->
+		setupHelper(Sid, true);
 
-setup([]) ->
-		setupHelper(false);
+setup([Sid]) ->
+		setupHelper(Sid, false);
 				 
-setup([Other]) ->
+setup([_Sid, Other]) ->
 	core_util:userException("illegal option: "++Other).
 
 
 
 
 
--spec resetParameters() -> ok.
+-spec resetParameters(sid()) -> ok.
 
-resetParameters() ->
-	param_parameter:setRecursionDepth(?RECURSION_DEPTH_DEFAULT),
-	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT).
+resetParameters(Sid) ->
+	param_parameter:setRecursionDepth(Sid, ?RECURSION_DEPTH_DEFAULT).

@@ -69,7 +69,7 @@ init() ->
 
 %% @doc Terminate the ongoing game.
 
--spec quit([string()]) -> #cmdresult{}. 
+-spec quit([sid()|string()]) -> #cmdresult{}. 
 
 quit(_Args) ->
 	%say("welcome back~n", []),

@@ -45,9 +45,9 @@
 -export([preMain/0]).
 
 -export([main/1]).
--export([play/4]).
+-export([play/5]).
 
--export([setupBoard/0]).
+-export([setupBoard/1]).
 
 
 
@@ -92,7 +92,7 @@ main(["run", LibDir, Mode]) ->
 		{ok} ->
 			io:format("successfully loaded native functions~n", [])
 	end,
-	play(false, false, standard_io, user);
+	play(cli, false, false, standard_io, user);
 
 
 %% @doc Untested and unsupported.
@@ -102,11 +102,16 @@ main(["debug"]) ->
 		go ->
 			ok
 	end,
-	play(false, false, standard_io, user).
+	play(cli, false, false, standard_io, user).
 
 	
-setupBoard() ->
-	put(board, core_board:instance()).
+
+%% @doc Intentional use of erlang:put/2. Even subprocesses will do this
+%% same dirty trick. There is erlang:get/1 used for picking up the board
+%% in various places.
+
+setupBoard(Sid) ->
+	put(board, core_board:instance(Sid)).
 
 
 	
@@ -119,30 +124,28 @@ setupBoard() ->
 %% TODO, what are the different entry sequences?
 
 
--spec play(boolean(), boolean(), xdevice(), o_device()) -> #gameState{}.
+-spec play(sid(), boolean(), boolean(), xdevice(), o_device()) -> #gameState{}.
 
-play(Echo, BreakOnException, InputDevice, ResultDevice) ->
-	core_state:clear(),
-	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),
-	core_state:sput(mode, console),
-	core_gamestate:create(),
-	setupBoard(),
+play(Sid, Echo, BreakOnException, InputDevice, ResultDevice) ->
+	core_state:clear(Sid),
+	core_gamestate:create(Sid),
+	setupBoard(Sid),
 	
-	core_state:reset(loopCount),
-	cmd_play:setSuggestion(?SMALLINT_MIN_VALUE, null),
+	core_state:reset({Sid, loopCount}),
+	cmd_play:setSuggestion(Sid, ?SMALLINT_MIN_VALUE, null),
 	
 	cmd_dict:setupCommands(),
 	
-	try playLoop(Echo, InputDevice, BreakOnException, ResultDevice) of
+	try playLoop(Sid, Echo, InputDevice, BreakOnException, ResultDevice) of
 		ok ->
-			{ok, GameState} = core_state:sget(gameState),
+			{ok, GameState} = core_state:sget({Sid, gameState}),
 			GameState
 	catch
 		throw:(#exception{type=userException}) ->
-			throw({throw, core_gamestate:getCurrentNode(), null});
+			throw({throw, core_gamestate:getCurrentNode(Sid), null});
 		throw:X:Stack ->
 			erlang:display(Stack),
-			{ok, GameState} = core_state:sget(gameState),
+			{ok, GameState} = core_state:sget({Sid, gameState}),
 			throw({throw, GameState, X});
 		error:X:Stack ->
 			erlang:display(Stack),
@@ -157,11 +160,11 @@ play(Echo, BreakOnException, InputDevice, ResultDevice) ->
 
 %% @doc The read-execute loop of an ongoing game.
 
--spec playLoop(boolean(), xdevice(), boolean(), o_device()) -> ok.
+-spec playLoop(sid(), boolean(), xdevice(), boolean(), o_device()) -> ok.
 
-playLoop(Echo, InputDevice, BreakOnException, ResultDevice) ->
+playLoop(Sid, Echo, InputDevice, BreakOnException, ResultDevice) ->
 	
-	core_state:incrementAndGet(loopCount, 1),
+	core_state:incrementAndGet({Sid, loopCount}, 1),
 	
 	case io:get_line(InputDevice, ?CLI_PROMPT) of
 		eof ->
@@ -177,16 +180,16 @@ playLoop(Echo, InputDevice, BreakOnException, ResultDevice) ->
 			end,
 			case string:tokens(Line, " \t\n") of
 				[] ->
-					playLoop(Echo, InputDevice, BreakOnException, ResultDevice);
+					playLoop(Sid, Echo, InputDevice, BreakOnException, ResultDevice);
 				[CommandName | Arguments] ->
-					try apply(cmd_dict:getFunction(CommandName, Arguments), [Arguments]) of
+					try apply(cmd_dict:getFunction(CommandName, Arguments), [[Sid|Arguments]]) of
 						#cmdresult{proceed=false} ->
 							ok;
 						
 						#cmdresult{proceed=true}=CR ->
 
-							display(ResultDevice, CR),
-							playLoop(Echo, InputDevice, BreakOnException, ResultDevice);
+							display(Sid, ResultDevice, CR),
+							playLoop(Sid, Echo, InputDevice, BreakOnException, ResultDevice);
 						
 						Other-> % TODO, eliminate after static analysis
 							core_util:inconsistencyException("ill-formed function result: ~w~n", [Other])
@@ -200,7 +203,7 @@ playLoop(Echo, InputDevice, BreakOnException, ResultDevice) ->
 										true ->
 											throw(E);
 										_ ->
-											playLoop(Echo, InputDevice, BreakOnException, ResultDevice)
+											playLoop(Sid, Echo, InputDevice, BreakOnException, ResultDevice)
 									end;
 								#exception{type=inconsistencyException} ->
 									cli_frame:display(ResultDevice, cli_frame:wrapException(E)),
@@ -260,9 +263,9 @@ playLoop(Echo, InputDevice, BreakOnException, ResultDevice) ->
 %% TODO, hardcoded values 0 (several places) and 4
 %% TODO, sharpen the type of 1st argument
 
--spec display(term(), #cmdresult{}) -> ok.
+-spec display(sid(), term(), #cmdresult{}) -> ok.
 
-display(Out, #cmdresult{message=Message, text=Text}) ->
+display(Sid, Out, #cmdresult{message=Message, text=Text}) ->
 	Frame = cli_frame:create(?CLI_INDENT, ?CLI_TOP, ?CLI_BOTTOM),
 
 	Frame2 =
@@ -282,33 +285,33 @@ display(Out, #cmdresult{message=Message, text=Text}) ->
 				[Message]
 		end,
 	
-	case core_gamestate:isSetup() of
+	case core_gamestate:isSetup(Sid) of
 		false ->
-			Summary5 = lists:append(Summary2, [core_gamestate:summary()]),
+			Summary5 = lists:append(Summary2, [core_gamestate:summary(Sid)]),
 			
 			%% summary
 			Frame3 = cli_frame:addRectangle(cli_rectangle:create(?CLI_RIGHT_COL, 0, Summary5), Frame2),
 			cli_frame:display(Out, Frame3);
 		
 		_ ->
-			CurrentNode = core_gamestate:getCurrentNode(),
+			CurrentNode = core_gamestate:getCurrentNode(Sid),
 			
 			%% chessboard display
-			Frame3 = cli_frame:addRectangle(cli_rectangle:create(0, 0, core_node:toStringList(CurrentNode)), Frame2),
-			PrecedingNode = core_gamestate:getPrecedingNode(),
+			Frame3 = cli_frame:addRectangle(cli_rectangle:create(0, 0, core_node:toStringList(Sid, CurrentNode)), Frame2),
+			PrecedingNode = core_gamestate:getPrecedingNode(Sid),
 			
 			Summary3 = 
 			if
 				PrecedingNode =/= null ->
 					Move = core_move:create(PrecedingNode, CurrentNode),
-					MoveDescription = core_move:describe(Move, false),
+					MoveDescription = core_move:describe(Sid, Move, false),
 					lists:append(Summary2, [MoveDescription]);
 				true ->
 					Summary2
 			end,
 			
-			Summary4 = lists:append(Summary3, [core_gamestate:summary()]),
-			MoveNumber = (core_gamestate:getSize()+1) div 2,
+			Summary4 = lists:append(Summary3, [core_gamestate:summary(Sid)]),
+			MoveNumber = (core_gamestate:getSize(Sid)+1) div 2,
 			#node{toMove=ToMove} = CurrentNode,
 			Summary5 = lists:append(Summary4, ["Move: " ++ integer_to_list(MoveNumber) ++ ", " ++
 						   atom_to_list(ToMove)++" to move"]),

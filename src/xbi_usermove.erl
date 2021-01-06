@@ -30,91 +30,91 @@
 %% Exported Functions
 %%
 -export([execute/1]).
--export([engineMove/0]).
+-export([engineMove/1]). % needed by xbi_go
 
 %%
 %% API Functions
 %%
 
--spec execute([string()]) -> ok.
+-spec execute([sid()|string()]) -> ok.
 
-execute([Move]) ->
-	xbi_controller:log("execute: usermove ~s", [Move]),
+execute([Sid, Move]) ->
+	xbi_controller:log(Sid, "execute: usermove ~s", [Move]),
 	
 	% TODO, check if we are in a state where no move is possible?
 	
 	% TODO, add code to perform the move
 	
-	Arguments = translate(Move, core_gamestate:getCurrentNode()),
+	Arguments = translate(Sid, Move, core_gamestate:getCurrentNode(Sid)),
 	Function = cmd_dict:getFunction("move", Arguments),
-	apply(Function, [Arguments]),
+	apply(Function, [[Sid]++Arguments]),
 	
 	% unless a throw occurred we have a new game state.
 	
-	engineMove().
+	engineMove(Sid).
 
 
--spec engineMove() -> ok.
+-spec engineMove(sid()) -> ok.
 
-engineMove() ->
-	case core_gamestate:getState() of
+engineMove(Sid) ->
+	case core_gamestate:getState(Sid) of
 		white_win ->
-			xbi_controller:stdout("result 1-0 {White mates}");
+			xbi_controller:stdout(Sid, "result 1-0 {White mates}");
 		black_win ->
-			xbi_controller:stdout("result 1-0 {Black mates}");
+			xbi_controller:stdout(Sid, "result 1-0 {Black mates}");
 		draw ->
-			xbi_controller:stdout("result 1/2-1/2 {Stalemate}");
+			xbi_controller:stdout(Sid, "result 1/2-1/2 {Stalemate}");
 		open ->
 			
-			Arguments = [integer_to_list(param_parameter:getRecursionDepth())],
+			Arguments = [integer_to_list(param_parameter:getRecursionDepth(Sid))],
 			Function = cmd_dict:getFunction("play", Arguments),
 			
-			xbi_controller:log("using depth: ~s", Arguments),
+			xbi_controller:log(Sid, "using depth: ~s", Arguments),
 			
-			case apply(Function, [Arguments]) of
+			case apply(Function, [[Sid]++Arguments]) of
 				#cmdresult{gsMoveMade=false, canClaimDraw=CanClaimDraw} ->
-					case core_gamestate:getState() of
+					case core_gamestate:getState(Sid) of
 						white_win ->
-							xbi_controller:stdout("result 1-0 {White mates}");
+							xbi_controller:stdout(Sid, "result 1-0 {White mates}");
 						black_win ->
-							xbi_controller:stdout("result 0-1 {Black mates}");
+							xbi_controller:stdout(Sid, "result 0-1 {Black mates}");
 						draw ->
 							case CanClaimDraw of
 								true ->
-									xbi_controller:stdout("result 1/1-1/2 {Draw by repetition}");
+									xbi_controller:stdout(Sid, "result 1/1-1/2 {Draw by repetition}");
 								false ->
-									xbi_controller:stdout("result 1/1-1/2 {Stalemate}")
+									xbi_controller:stdout(Sid, "result 1/1-1/2 {Stalemate}")
 							end
 					end;
 				#cmdresult{gsMoveMade=true, canClaimDraw=CanClaimDraw} ->
-					Current = core_gamestate:getCurrentNode(),
-					Preceding = core_gamestate:getPrecedingNode(),
+					Current = core_gamestate:getCurrentNode(Sid),
+					Preceding = core_gamestate:getPrecedingNode(Sid),
 					
 					timer:sleep(1800),    %% TODO, something better
 
 					case CanClaimDraw of
 						true ->
 							% tested by an Xboard game
-							xbi_controller:stdout("offer draw");
+							xbi_controller:stdout(Sid, "offer draw");
 						false ->
 							ok
 					end,
 					
-					xbi_controller:stdout("move " ++ core_move:toAlgebraic(core_move:create(Preceding, Current))),
+					xbi_controller:stdout(Sid, "move " ++ core_move:toAlgebraic(core_move:create(Preceding, Current))),
 				
-					xbi_controller:log("black advantage: ~w", [Current#node.blackAdvantage]),
+					xbi_controller:log(Sid, "black advantage: ~w", [Current#node.blackAdvantage]),
 					
-					case core_gamestate:getState() of
+					case core_gamestate:getState(Sid) of
 						white_win ->
-							xbi_controller:stdout("result 1-0 {White mates}");
+							xbi_controller:stdout(Sid, "result 1-0 {White mates}");
 						black_win ->
-							xbi_controller:stdout("result 0-1 {Black mates}");
+							xbi_controller:stdout(Sid, "result 0-1 {Black mates}");
 						draw ->
 							case CanClaimDraw of
 								true ->
-									xbi_controller:stdout("result 1/1-1/2 {Draw by repetition}");
+									xbi_controller:stdout(Sid, "result 1/1-1/2 {Draw by repetition}");
 								false ->
-									xbi_controller:stdout("result 1/1-1/2 {Stalemate}")
+									xbi_controller:stdout(Sid, "result 1/1-1/2 {Stalemate}")
 							end;
 						open ->
 							ok
@@ -128,10 +128,10 @@ engineMove() ->
 %% Local Functions
 %%
 
-translate(Alg, #node{pieces=BoardMap, toMove=ToMove}) ->
+translate(Sid, Alg, #node{pieces=BoardMap, toMove=ToMove}) ->
 	FromSquareName = string:substr(Alg, 1, 2),
 	ToSquareName = string:substr(Alg, 3, 2),
-	FromSquare = core_board:getSquare(FromSquareName),
+	FromSquare = core_board:getSquare(Sid, FromSquareName),
 	#piece{type=Type} = core_boardmap:get(FromSquare, BoardMap),
 
 	case Type of

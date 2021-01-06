@@ -52,8 +52,10 @@ init() ->
 
 %% @doc TODO, should do the text processing in this module.
 
-history([]) ->
-	StateNodes = core_gamestate:getHistory(),
+-spec history([sid()]) -> #cmdresult{}.
+
+history([Sid]) ->
+	StateNodes = core_gamestate:getHistory(Sid),
 	Lines = getHistoryHelper(StateNodes, 0, []),
 	#cmdresult{text=Lines}.
 

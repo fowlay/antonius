@@ -28,7 +28,7 @@
 %%
 -export([init/0]).
 
--export([moveFinalize/2]).
+-export([moveFinalize/3]).
 
 -export([move/1]).
 
@@ -78,15 +78,15 @@ init() ->
 
 
 
--spec moveFinalize(colour(), #node{}) -> #cmdresult{}.
+-spec moveFinalize(sid(), colour(), #node{}) -> #cmdresult{}.
 
-moveFinalize(Moving, NewNode) ->
+moveFinalize(Sid, Moving, NewNode) ->
 	Message =
-		case core_node:isCheckmated(NewNode) of
+		case core_node:isCheckmated(Sid, NewNode) of
 			true ->
 				atom_to_list(Moving)++" has won by checkmate";
 			false ->
-				case core_node:isStalemate(NewNode) of
+				case core_node:isStalemate(Sid, NewNode) of
 					true ->
 						"stalemate";
 					false ->
@@ -101,63 +101,63 @@ moveFinalize(Moving, NewNode) ->
 %% TODO: This function could construct the statenode
 %% immediately, instead of "updating".
 
--spec move([string()]) -> #cmdresult{}.
+-spec move([sid()|string()]) -> #cmdresult{}.
 
-move(["0-0"]) ->
-	Node = core_gamestate:getCurrentNode(),
+move([Sid, "0-0"]) ->
+	Node = core_gamestate:getCurrentNode(Sid),
 	#node{toMove=ToMove} = Node,
-	NewNode = core_node:expandAndSelect(Node, 7),
-	doAddNodeAndSetStateToo(NewNode),
-	moveFinalize(ToMove, NewNode);
+	NewNode = core_node:expandAndSelect(Sid, Node, 7),
+	doAddNodeAndSetStateToo(Sid, NewNode),
+	moveFinalize(Sid, ToMove, NewNode);
 	
 
-move(["0-0-0"]) ->
-	Node = core_gamestate:getCurrentNode(),
+move([Sid, "0-0-0"]) ->
+	Node = core_gamestate:getCurrentNode(Sid),
 	#node{toMove=ToMove} = Node,
-	NewNode = core_node:expandAndSelect(Node, 3),
-	doAddNodeAndSetStateToo(NewNode),
-	moveFinalize(ToMove, NewNode);
+	NewNode = core_node:expandAndSelect(Sid, Node, 3),
+	doAddNodeAndSetStateToo(Sid, NewNode),
+	moveFinalize(Sid, ToMove, NewNode);
 
-move([_Other]) ->
+move([_Sid, _Other]) ->
 	core_util:userException("expected 0-0 or 0-0-0");
 
-move([FromName, ToName]) ->
-	move([FromName, ToName, "q"]);
+move([Sid, FromName, ToName]) ->
+	move([Sid, FromName, ToName, "q"]);
 
-move([FromName, ToName, PromotionCode]) ->
-	Node = core_gamestate:getCurrentNode(),
+move([Sid, FromName, ToName, PromotionCode]) ->
+	Node = core_gamestate:getCurrentNode(Sid),
 	#node{toMove=ToMove} = Node,
-	NewNode = core_node:expandAndSelect(
+	NewNode = core_node:expandAndSelect(Sid,
 				     Node,
 				     getSquare(FromName),
 				     getSquare(ToName),
 				     getPromotionType(PromotionCode)),
-	doAddNodeAndSetStateToo(NewNode),
-	moveFinalize(ToMove, NewNode).
+	doAddNodeAndSetStateToo(Sid, NewNode),
+	moveFinalize(Sid, ToMove, NewNode).
 
 
 
 %% @doc .. eliminate this one?
 
--spec doAddNodeAndSetStateToo(#node{}) -> ok.
+-spec doAddNodeAndSetStateToo(sid(), #node{}) -> ok.
 
-doAddNodeAndSetStateToo(#node{toMove=ToMove}=Node) ->
-	core_gamestate:addNode(Node),
- case core_node:isStalemate(Node) of
-true ->
-core_gamestate:setCurrentState(draw);
-false ->
-case core_node:isCheckmated(Node) of
-	true ->
-		case ToMove of
-			white ->
-				core_gamestate:setCurrentState(black_win);
-			black ->
-				core_gamestate:setCurrentState(white_win)
-		end;
-	false ->
-		core_gamestate:setCurrentState(open)
-end
+doAddNodeAndSetStateToo(Sid, #node{toMove=ToMove}=Node) ->
+	core_gamestate:addNode(Sid, Node),
+	case core_node:isStalemate(Sid, Node) of
+		true ->
+			core_gamestate:setCurrentState(Sid, draw);
+		false ->
+			case core_node:isCheckmated(Sid, Node) of
+				true ->
+					case ToMove of
+						white ->
+							core_gamestate:setCurrentState(Sid, black_win);
+						black ->
+							core_gamestate:setCurrentState(Sid, white_win)
+					end;
+				false ->
+					core_gamestate:setCurrentState(Sid, open)
+			end
 	end.
 
 	

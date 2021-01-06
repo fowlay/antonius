@@ -52,10 +52,10 @@ init() ->
 
 %% @doc Undo the latest half-move.
 
--spec undo([string()]) -> #cmdresult{}.
+-spec undo([sid()]) -> #cmdresult{}.
 
-undo([]) ->
-	core_gamestate:removeCurrentNode(),
+undo([Sid]) ->
+	core_gamestate:removeCurrentNode(Sid),
 	#cmdresult{gsMoveRetracted=true}.
 
 %%

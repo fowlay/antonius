@@ -53,15 +53,11 @@
 
 -spec initVm(string(), atom()) -> tuple().
 
-initVm(LibDir, Mode) ->
+initVm(LibDir, _Mode) ->
 	
 	LoadNative = core_nif:init(LibDir),
 	
 	core_state:start(),
-	
-	core_state:sput(mode, Mode),
-	
-	param_parameter:setNumberOfThreads(?MAX_THREADS_DEFAULT),
 	
 	LoadNative.
 

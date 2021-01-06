@@ -63,6 +63,7 @@ wait_for_started() ->
 		started ->
 			ok;
 		_ ->
+			timer:sleep(100),   %% TODO, is this required at all??
 			wait_for_started()
 	end.
 

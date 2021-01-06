@@ -7,22 +7,34 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([start/1]).
--export([allowLogging/0]).
+-export([allowLogging/1]).
+-export([log/3]).
 -export([log/2]).
--export([log/1]).
--export([stdout/1]).
 -export([stdout/2]).
+-export([stdout/3]).
 
 
 -include("exception.hrl").
+-include("antonius.hrl").
 
 %% Mode is "xboard" or "ics"
 %% "xboard" implies Socket == "null"
 
 
 start([LibPath, Mode, Socket, Master]) ->
+	
+	Sid =
+		if
+			Socket =/= "null" ->
+				{ok, {Addr, Port}} = inet:peername(Socket),
+				{Port, Addr};
+			true ->
+				xboard
+		end,
+	
 	if
 		Socket =/= "null" ->
+			core_state:sput({Sid, socket}, Socket),
 			%% metal_log("running, using socket: ~p", []),
 			Master ! started;
 		true ->
@@ -31,14 +43,17 @@ start([LibPath, Mode, Socket, Master]) ->
 
 	       , core_logger:logLine("the log is operational", [])
 	end,
-	
-	persistent_term:put(theSocket, Socket),   %% TODO, really dirty
 
-	case core_util:initVm(LibPath, list_to_atom(Mode)) of
-		{ok} ->
-			ok;
-		_ ->
-			init:stop()
+	if
+		Socket =:= "null" ->
+			case core_util:initVm(LibPath, list_to_atom(Mode)) of
+				{ok} ->
+					ok;
+				_ ->
+					init:stop()
+			end;
+		true ->
+			ok
 	end,
 	
 	core_logger:logLine("done init VM", []),
@@ -47,24 +62,24 @@ start([LibPath, Mode, Socket, Master]) ->
 
 	core_logger:logLine("done start listener", []),
 
-	{ok, _Pid} = gen_server:start(?MODULE, [Mode, ListenerPid], []),
+	{ok, _Pid} = gen_server:start(?MODULE, [Sid, Mode, ListenerPid], []),
 	
 	core_logger:logLine("done start controller loop", []),
 	
 	ok.
 
--spec stdout(string()) -> ok.
+-spec stdout(sid(), string()) -> ok.
 
-stdout(String) ->
+stdout(Sid, String) ->
 	try
 		core_logger:logLine("xbi_controller, send data to xboard: ~p", [String]),
-		case core_state:sget(mode) of
-			{ok, xboard} ->
+		if
+			not(is_tuple(Sid)) ->
 				core_logger:logLine("[C] mode: ~p", [xboard]),
 				io:fwrite("~s~n", [String]);
-			{ok, ics} ->
+			true ->
 				core_logger:logLine("[C] mode: ~p", [ics]),
-				Socket = persistent_term:get(theSocket),
+				{ok, Socket} = core_state:sget({Sid, socket}),
 				ok = gen_tcp:send(Socket, String ++ "\n")
 		end
 	catch
@@ -73,24 +88,24 @@ stdout(String) ->
 	end.
 
 
--spec stdout(string(), [term()]) -> ok.
+-spec stdout(sid(), string(), [term()]) -> ok.
 
-stdout(Format, Data) ->
-  stdout(lists:flatten(io_lib:format(Format, Data))).
+stdout(Sid, Format, Data) ->
+  stdout(Sid, lists:flatten(io_lib:format(Format, Data))).
 
 
-allowLogging() ->
-	core_state:sput(loggingAllowed, true),
-	[log(String) || String <- core_state:sget(deferredLog)].
+allowLogging(Sid) ->
+	core_state:sput({Sid, loggingAllowed}, true),
+	[log(Sid, String) || String <- core_state:sget({Sid, deferredLog})].
 
-log(Format, Arguments) ->
-	log(io_lib:format(Format, Arguments)).
+log(Sid, Format, Arguments) ->
+	log(Sid, io_lib:format(Format, Arguments)).
 	
 
-log(String) ->
-	case core_state:sget(loggingAllowed) of
+log(Sid, String) ->
+	case core_state:sget({Sid, loggingAllowed}) of
 		false ->
-			core_state:sput(deferredLog, lists:append(core_state:sget(deferredLog), [String]));
+			core_state:sput({Sid, deferredLog}, lists:append(core_state:sget({Sid, deferredLog}), [String]));
 		_ ->
 			io:fwrite("# ~s~n", [String])
 	end.
@@ -98,7 +113,8 @@ log(String) ->
 
 
 -record(state,
-		{listener :: pid(),
+		{sid :: sid(),
+		 listener :: pid(),
 		 dict
 		}).
 
@@ -114,25 +130,23 @@ log(String) ->
 	State :: term(),
 	Timeout :: non_neg_integer() | infinity.
 %% ====================================================================
-init([Mode, ListenerPid]) ->
+init([Sid, Mode, ListenerPid]) ->
 	
 	core_logger:logLine("[C] mode: ~p", [Mode]),
-	
-    %% log("mode is: ~p", [Mode]),
 
-	cmd_dict:setupCommands(),
+	if ?IS_XBOARD(Sid) -> cmd_dict:setupCommands(); true -> ok end,
 		
-	cli_game:setupBoard(),
+	cli_game:setupBoard(Sid),
 
-	core_state:sput(loggingAllowed, false),
-	core_state:sput(deferredLog, []),
+	core_state:sput({Sid, loggingAllowed}, false),
+	core_state:sput({Sid, deferredLog}, []),
 	
-	core_gamestate:create(),
+	core_gamestate:create(Sid),
 	
 	
 	Dict = xbi_command:setup(),
 	
-    {ok, #state{dict = Dict, listener = ListenerPid}, 0}.
+    {ok, #state{sid = Sid, dict = Dict, listener = ListenerPid}, 0}.
 
 
 %% handle_call/3
@@ -168,7 +182,7 @@ handle_call(_Request, _From, State) ->
 	NewState :: term(),
 	Timeout :: non_neg_integer() | infinity.
 %% ====================================================================
-handle_cast({request, Line}, #state{dict = Dict} = State) ->
+handle_cast({request, Line}, #state{sid = Sid, dict = Dict} = State) ->
 	
 	%% execute the request
 	%% maybe recognize "quit" especially
@@ -176,29 +190,29 @@ handle_cast({request, Line}, #state{dict = Dict} = State) ->
 
 	case string:tokens(Line, " ") of
 		[] ->
-			log("unexpected empty line from xboard");
+			log(Sid, "unexpected empty line from xboard");
 		[Keyword|Arguments] ->
 			case dict:is_key(Keyword, Dict) of
 				false ->
-					log(" ignore: ~s", [Line]);
+					log(Sid, " ignore: ~s", [Line]);
 				true ->
 					core_logger:logLine("about to execute: ~p ~p", [Keyword, Arguments]),
 					try
-						xbi_command:execute(Keyword, Arguments, Dict)
+						xbi_command:execute(Sid, Keyword, Arguments, Dict)
 					catch
 						_A:#exception{type=Type, message=Message, reason=Reason}:Stack ->
-							log(io_lib:format("caught: ~p, reason: ~p, message: ~p", [Type, Message, Reason])),
-							log(io_lib:format("stack trace: ~p~n", [Stack]));
+							log(Sid, io_lib:format("caught: ~p, reason: ~p, message: ~p", [Type, Message, Reason])),
+							log(Sid, io_lib:format("stack trace: ~p~n", [Stack]));
 						A:B:Stack ->
-							log(io_lib:format("caught: ~p: ~p~n", [A, B])),
-							log(io_lib:format("stack trace: ~p~n", [Stack]))
+							log(Sid, io_lib:format("caught: ~p: ~p~n", [A, B])),
+							log(Sid, io_lib:format("stack trace: ~p~n", [Stack]))
 					end
 			end
 	end,
 	
 	case Line of
 		"quit" ->
-			log("xbi_controller stops"),
+			log(Sid, "xbi_controller stops"),
 			{stop, normal, State};             %% TODO, differently, stop this server?
 		_ ->
 			{noreply, State, 0}

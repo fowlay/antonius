@@ -34,16 +34,16 @@
 %% API Functions
 %%
 
--spec execute([string()]) -> ok.
+-spec execute([sid()]) -> ok.
 
-execute([]) ->
+execute([Sid]) ->
 	xbi_controller:log("execute: new", []),
 	
 	Function = cmd_dict:getFunction("setup", []),
 
-	apply(Function, [[]]),
+	apply(Function, [[Sid]]),
 	
-	#node{blackAdvantage=BA} = core_gamestate:getCurrentNode(),
+	#node{blackAdvantage=BA} = core_gamestate:getCurrentNode(Sid),
 	xbi_controller:log("black advantage: ~w", [BA]),
 	
 	ok.

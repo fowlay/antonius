@@ -23,6 +23,8 @@
 %% Include files
 %%
 
+-include("antonius.hrl").
+
 %%
 %% Exported Functions
 %%
@@ -33,11 +35,11 @@
 %% API Functions
 %%
 
--spec execute([string()]) -> ok.
+-spec execute([sid()]) -> ok.
 
-execute([]) ->
+execute([Sid]) ->
 	xbi_controller:log("execute: go", []),
-	xbi_usermove:engineMove().
+	xbi_usermove:engineMove(Sid).
 
 %%
 %% Local Functions

@@ -45,7 +45,8 @@
 
 -define (DISPLAY_LIMIT, 7).
 
-
+-type sid() :: tuple()|xboard|cli|test.
+-define(IS_XBOARD(SID), (SID =:= xboard)).
 
 -type smallint() :: ?SMALLINT_MIN_VALUE..?SMALLINT_MAX_VALUE.
 -type xstring()  :: string() | null.

@@ -29,9 +29,8 @@
 %% Exported Functions
 %%
 
--export([setRecursionDepth/1]).
--export([getRecursionDepth/0]).
--export([setNumberOfThreads/1]).
+-export([setRecursionDepth/2]).
+-export([getRecursionDepth/1]).
 -export([getNumberOfThreads/0]).
 
 %%
@@ -47,26 +46,18 @@
 
 
 
-setRecursionDepth(Depth) ->
-	core_state:sput(recursionDepth, Depth).
+setRecursionDepth(Sid, Depth) ->
+	core_state:sput({Sid, recursionDepth}, Depth).
 
-getRecursionDepth() ->
-	case core_state:sget(recursionDepth) of
+getRecursionDepth(Sid) ->
+	case core_state:sget({Sid, recursionDepth}) of
 		{ok, Value} ->
 			Value;
 		_ ->
 			?RECURSION_DEPTH_DEFAULT
 	end.
 
-
--spec setNumberOfThreads(smallint()) -> ok.
-
-setNumberOfThreads(N) ->
-	core_state:sput(maxThreads, N).
-
-
 -spec getNumberOfThreads() -> smallint().
 
 getNumberOfThreads() ->
-	{ok, Result} = core_state:sget(maxThreads),
-	Result.
+	?MAX_THREADS_DEFAULT.
