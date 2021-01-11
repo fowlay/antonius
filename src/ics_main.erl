@@ -7,7 +7,7 @@
 -export([start/1]).
 
 
-start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
+start([IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 	try
 		io:fwrite("args: ~p~n", [Args]),
 		{ok, _} = core_logger:start(Log),
@@ -22,15 +22,13 @@ start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 		
 		cmd_dict:setupCommands(),
 		
-		Depth = list_to_integer(DepthS),
-		
 		IcsPortTry = list_to_integer(IcsPortDefaultS),
 		IcsPortMax = IcsPortTry + 10,
 		OptionsIcs = [{nodelay, true}],
 		{ok, ListenIcs, IcsPort} = get_listener_socket(IcsPortTry, IcsPortMax, OptionsIcs),
 		core_logger:logLine("ICS port: ~p", [IcsPort]),
 		
-		ListenIcsPid = spawn(ics_ics, start, [self(), ListenIcs, Depth]),   %% TODO, self() is not used
+		{ok, ListenIcsPid} = ics_ics:start(ListenIcs),
 
 		ControlPortTry = list_to_integer(ControlPortDefaultS),
 		ControlPortMax = ControlPortTry + 10,
@@ -41,8 +39,8 @@ start([DepthS, IcsPortDefaultS, ControlPortDefaultS, Log]=Args) ->
 		
 		receive
 			stop ->
-				ListenIcsPid ! stop,
-				ok
+				%% received 'stop' from the ics_control process
+				gen_server:cast(ListenIcsPid, stop)
 		end
 	catch X:Y:S ->
 			  core_logger:logLine("caught: ~p, ~p, stack: ~p", [X, Y, S])

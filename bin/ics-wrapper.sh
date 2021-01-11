@@ -53,26 +53,7 @@ touch $Log
 # TODO, only while developing
 xterm -e tail -f -n 1000 $Log &
 
-# TODO .. what?
-# The -initString option is awkward. The default setting is
-# new\nrandom\n but we reset it to just new\n. The option value
-# must include a terminating newline, hence the quotes appearing
-# on separate lines.
-
-#   -ponderNextMove false \
-#   -xthinking \
-
-# xboard \
-#   -fcp "$Engine" \
-#   -debugMode true \
-#   -engineDebugOutput 1 \
-#   -nameOfDebugFile $Log \
-#   -initString \
-# "new
-# sd $Depth
-# "
-
 erl \
     -noshell \
     -pa $Root/ebin \
-    -run ics_main start $Depth $IcsPortDefault $ControlPortDefault $Log
+    -run ics_main start $IcsPortDefault $ControlPortDefault $Log
