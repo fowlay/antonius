@@ -1,4 +1,10 @@
 
+About the mania-2021 branch
+
+This branch was created when reinstalling 'mania', and includes
+uncommitted work (5 files in total: 3 modified and 2 new). To inspect,
+check differences against commit 06bb6e9 on the master branch.
+
 
 Renaming
 

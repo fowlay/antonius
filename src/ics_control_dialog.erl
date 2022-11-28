@@ -1,30 +1,34 @@
 %% @author erarafo
-%% @doc @todo Add description to ics_ics.
+%% @doc Started by: ics_control
+%% Server side of a telnet dialog
 
 
--module(ics_ics).
+
+-module(ics_control_dialog).
 -behaviour(gen_server).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start/1]).
+-export([start/2]).
 
-start(IcsPortTry) ->
-	IcsPortMax = IcsPortTry + 10,
-	OptionsIcs = [{nodelay, true}],
-	{ok, ListenIcs, IcsPort} = ics_lib:get_listener_socket(IcsPortTry, IcsPortMax, OptionsIcs),
-	core_logger:logLine("ICS port: ~p", [IcsPort]),
-	gen_server:start({local, ?MODULE}, ?MODULE, [ListenIcs], []).
+start(Master, Socket) ->
+	gen_server:start(?MODULE, [Master, Socket], []).
+
 
 
 %% ====================================================================
 %% Behavioural functions
 %% ====================================================================
 -record(state,
-		{socket,
-		 sessions = ordsets:new()}).
+		{master :: pid(),
+		 socket :: inet:socket(),
+		 databuffer :: list(),
+		 commands = [] :: [string()],
+		 shutdown = false :: boolean(),
+		 close_at_once = false :: boolean()
+		 }).
 
 %% init/1
 %% ====================================================================
@@ -38,8 +42,9 @@ start(IcsPortTry) ->
 	State :: term(),
 	Timeout :: non_neg_integer() | infinity.
 %% ====================================================================
-init([ListenIcs]) ->
-    {ok, #state{socket = ListenIcs}, 0}.
+init([Master, Socket, CloseAtOnce]) ->
+	inet:setopts(Socket, [{active, true}]),
+    {ok, #state{master = Master, socket = Socket, close_at_once = CloseAtOnce}, 0}.
 
 
 %% handle_call/3
@@ -75,16 +80,6 @@ handle_call(_Request, _From, State) ->
 	NewState :: term(),
 	Timeout :: non_neg_integer() | infinity.
 %% ====================================================================
-
-handle_cast(stop, State) ->
-	ordsets:fold(
-	  fun(Pid, _Acc) ->
-			  Pid ! stop       %% TODO, adaptation to xbi_controller
-	  end,
-	  ignore,
-	  State#state.sessions),
-	{stop, normal, State};
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -100,29 +95,34 @@ handle_cast(_Msg, State) ->
 	NewState :: term(),
 	Timeout :: non_neg_integer() | infinity.
 %% ====================================================================
-handle_info(timeout, State) ->
-	case gen_tcp:accept(State#state.socket, 1000) of
-		{error, timeout} ->
-			%% time out periodically to handle control messages
-			%% core_logger:logLine("accept timeout", []),
-			{noreply, State, 0};
-		{error, closed} ->
-			core_logger:logLine("in module: ~p, gen_tcp:accept/2 returned {error, closed}", [?MODULE]),
-			{noreply, State, 0};
-		{ok, Socket} ->
-			core_logger:logLine("connection accepted: ~p", [Socket]),
-			ok = inet:setopts(Socket, [{active, false}]),
-			
-			Session = spawn(xbi_controller, start,
-							[["/home/erarafo/git/antonius/lib", "ics", Socket, self()]]),
-			wait_for_started(),
-			ok = gen_tcp:controlling_process(Socket, Session),
-			
-			core_logger:logLine("connection passed to xbi_controller:start/1", []),
-			NewSessions = ordsets:add_element(Session, State#state.sessions),
-			{noreply, State#state{sessions = NewSessions}, 0}
-	end;
 
+handle_info({tcp_closed, _Port}, State) ->
+	%% telnet client closed session
+	{stop, close, State};
+
+handle_info({tcp, _Port, Data}, #state{databuffer = DataBuffer, commands = Commands} = State) when is_list(Data) ->
+	%% incoming data; buffer it and time out immediately
+	NewDataBuffer = DataBuffer ++ Data,
+	{NewNewDataBuffer, NewCommands} = ics_lib:add_to_buffer(NewDataBuffer, Commands),
+	{noreply, State#state{commands = NewCommands, databuffer = NewNewDataBuffer}, 0};
+
+handle_info(timeout, #state{close_at_once = true} = State) ->
+	%% can only occur if set by init
+	{stop, close_at_once, State};
+
+handle_info(timeout, #state{commands = []} = State) ->
+	%% no commands yet
+	{noreply, State};
+
+handle_info(timeout, #state{commands = [First|More]} = State) ->
+	NewState = execute(First, State),
+	if
+		NewState#state.shutdown ->
+			{stop, shutdown, NewState};
+		true ->
+			{noreply, NewState#state{commands = More}, 0}
+	end;
+	
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -136,6 +136,26 @@ handle_info(_Info, State) ->
 			| {shutdown, term()}
 			| term().
 %% ====================================================================
+
+
+terminate(close_at_once, #state{master = Master, socket = Socket}) ->
+	gen_tcp:send(Socket, "another session ongoing\r\n"),
+	gen_tcp:close(Socket),
+	gen_server:cast(Master, {close, self()}),
+	ok;
+
+
+terminate(close, #state{master = Master, socket = Socket}) ->
+	gen_server:cast(Master, {close, self()}),
+	gen_tcp:close(Socket),
+	ok;
+
+terminate(shutdown, #state{master = Master, socket = Socket}) ->
+	gen_server:cast(Master, shutdown),
+	gen_tcp:close(Socket),
+    ok;
+
+
 terminate(_Reason, _State) ->
     ok.
 
@@ -156,12 +176,12 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %% ====================================================================
 
-wait_for_started() ->
-	receive
-		started ->
-			ok;
-		_ ->
-			timer:sleep(100),   %% TODO, is this required at all??
-			wait_for_started()
-	end.
+execute("shutdown", #state{socket = Socket} = State) ->
+	gen_tcp:send(Socket, "ok\r\n"),
+	gen_tcp:close(Socket),
+	State#state{shutdown = true};
+
+execute(_Unknown, #state{socket = Socket} = State) ->
+	gen_tcp:send(Socket, "unknown command\r\n"),
+	State.
 

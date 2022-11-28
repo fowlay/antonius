@@ -113,12 +113,12 @@ handle_cast({input, Line}, #state{controller_pid = Cpid,
 	end;
 
 handle_cast({get_request, ControllerPid},
-			#state{commands = [First|More], socket = Socket} = State) ->
+			#state{commands = [First|More]} = State) ->
 	core_logger:logLine("[L] deliver request promptly", []),
 	gen_server:cast(ControllerPid, {request, First}),
 	{noreply, State#state{commands = More}};
 
-handle_cast({get_request, ControllerPid}, #state{commands = [], socket = Socket} = State) ->
+handle_cast({get_request, ControllerPid}, #state{commands = []} = State) ->
 	core_logger:logLine("[L] empty queue", []),
 	{noreply, State#state{deferredrequest = true, controller_pid = ControllerPid}};
 
@@ -150,7 +150,7 @@ handle_info({tcp, _Socket, Data},
 	core_logger:logLine("socket received data: ~p", [Data]),
 	NewDataBuffer = DataBuffer ++ Data,
 	
-	{NewNewDataBuffer, NewCommands} = add_to_buffer(NewDataBuffer, Commands),
+	{NewNewDataBuffer, NewCommands} = ics_lib:add_to_buffer(NewDataBuffer, Commands),
 	
 	if
 		R andalso NewCommands =/= [] ->
@@ -198,33 +198,10 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %% ====================================================================
 
-%% @doc Splits off the smallest leading newline-terminated line. The returned
-%% value is {null, _} if no newline is seen. If splitting succeeds,
-%% the split-off string and the remainder is returned. The split-off
-%% string is trimmed.
-
--spec leader_line(string(), string()) -> {string(), string()}|null.
 
 
-leader_line([], _Acc) ->
-	null;
-
-leader_line([$\n|More], Acc) ->
-	{lists:reverse(Acc), More};
-
-leader_line([A|More], Acc) ->
-	leader_line(More, [A|Acc]).
 
 
--spec add_to_buffer(string(), [string()]) -> {string(), [string()]}.
-
-add_to_buffer(Data, Buffer) ->
-	case leader_line(Data, "") of
-		null ->
-			{Data, Buffer};
-		{Command, More} ->
-			add_to_buffer(More, Buffer ++ [Command])
-	end.
 
 
 
